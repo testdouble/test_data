@@ -1,8 +1,12 @@
-# frozen_string_literal: true
-
 require_relative "test_data/version"
-
-module TestData
-  class Error < StandardError; end
-  # Your code goes here...
-end
+require_relative "test_data/config"
+require_relative "test_data/railtie"
+require_relative "test_data/active_support_ext"
+require_relative "test_data/configurators"
+require_relative "test_data/detects_database_emptiness"
+require_relative "test_data/verifies_configuration"
+require_relative "test_data/verifies_dumps_are_loadable"
+require_relative "test_data/installs_configuration"
+require_relative "test_data/error"
+require_relative "test_data/dumps_database"
+require_relative "test_data/loads_database_dumps"
