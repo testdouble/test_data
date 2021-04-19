@@ -1,13 +1,11 @@
 require "rails/generators"
 
-require "test_data/configurators/database_yaml"
-
 module TestData
   class DatabaseYamlGenerator < Rails::Generators::Base
     BEFORE_TEST_DATABASE_STANZA_REGEX = /^$\n(?:^\#.*\n)*^test:/
 
     def call
-      if Configurators::DatabaseYaml.new(pwd: Rails.root).verify.looks_good?
+      if Configurators::DatabaseYaml.new.verify.looks_good?
         warn "'test_data' section already defined in config/database.yml"
       else
         app_name = Rails.application.railtie_name.chomp("_application")

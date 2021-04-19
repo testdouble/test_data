@@ -1,6 +1,3 @@
-require_relative "../configuration_verification"
-require_relative "../../generators/test_data/environment_file_generator"
-
 module TestData
   module Configurators
     class EnvironmentFile

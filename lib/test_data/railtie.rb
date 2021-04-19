@@ -8,9 +8,5 @@ module TestData
     rake_tasks do
       load Pathname.new(__dir__).join("rake.rb")
     end
-
-    # generators do
-    #   require "test_data/generators/environment_file"
-    # end
   end
 end

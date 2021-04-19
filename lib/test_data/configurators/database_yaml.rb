@@ -1,6 +1,3 @@
-require_relative "../configuration_verification"
-require_relative "../../generators/test_data/database_yaml_generator"
-
 module TestData
   module Configurators
     class DatabaseYaml

@@ -1,5 +1,3 @@
-require_relative "configuration_verification"
-
 module TestData
   class VerifiesConfiguration
     def call

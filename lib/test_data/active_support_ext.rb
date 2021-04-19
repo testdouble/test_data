@@ -1,14 +1,9 @@
 require "active_support/environment_inquirer"
+
 module ActiveSupport
-  class EnvironmentInquirer
-    def initialize(env)
-      super(env)
-
-      @test_data = env == "test_data"
-    end
-
+  class EnvironmentInquirer < StringInquirer
     def test_data?
-      @test_data
+      self == "test_data"
     end
   end
 end
