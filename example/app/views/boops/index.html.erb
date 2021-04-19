@@ -1,0 +1,8 @@
+<%= form_with model: Boop.new do |f| %>
+  <%= f.submit "Boop" %>
+<% end %>
+<ul>
+  <% @boops.each do |boop| %>
+    <li><%= boop.id %></li>
+  <% end %>
+</ul>

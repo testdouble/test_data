@@ -1,0 +1,2 @@
+class Boop < ApplicationRecord
+end
