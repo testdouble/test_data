@@ -7,7 +7,7 @@ module TestData
 
     def call
       if Configurators::WebpackerYaml.new.verify.looks_good?
-        warn "'test_data' section already defined in config/webpacker.yml"
+        warn "'test_data' section not needed in config/webpacker.yml"
       else
         inject_into_file "config/webpacker.yml", after: AFTER_DEVELOPMENT_WEBPACK_STANZA_REGEX do
           " &development"

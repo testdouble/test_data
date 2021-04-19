@@ -14,5 +14,13 @@ bin/rake test_data:dump
 # Run the first test (coupled to only seeds being in the DB)
 bin/rails test test/integration/basic_boops_test.rb
 
+# Cleanup
+
+# Delete the test_data database
+bin/rake test_data:drop_database
+
 # Unset file changes
 git checkout config/database.yml
+
+# Delete all untracked files (e.g. dumps, env config)
+git clean -xdf .
