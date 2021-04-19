@@ -4,6 +4,11 @@ PS4='[script/test:${LINENO}] $ '
 set -e
 set -x
 
+# Make sure the main project installs & passes its own rake
+bundle
+bundle exec rake
+
+# Exercise the example app
 cd example
 bundle
 
