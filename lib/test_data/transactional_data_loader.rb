@@ -11,10 +11,6 @@ module TestData
     @transactional_data_loader.rollback(to: to)
   end
 
-  def self.reset
-    @transactional_data_loader.reset
-  end
-
   class TransactionalDataLoader
     def initialize
       @config = TestData.config
@@ -32,11 +28,6 @@ module TestData
     def rollback(to:)
       return unless save_point?(to)
       rollback_save_point(to)
-    end
-
-    def reset
-      execute("rollback")
-      @save_points = []
     end
 
     private
