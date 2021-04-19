@@ -9,6 +9,17 @@ def run_in_test_data_env(task_name)
   end
 end
 
+def create_database_or_else_blow_up_if_its_not_empty!
+  unless TestData::DetectsDatabaseEmptiness.new.empty?
+    raise TestData::Error.new("Database '#{TestData.config.database_name}' already exists and is not empty. To re-initialize it, drop it first (e.g. `rake test_data:drop_database`)")
+  end
+rescue TestData::Error => e
+  raise e
+rescue
+  # Only (anticipated) cause for raise here is DB did not exist
+  Rake::Task["test_data:create_database"].invoke
+end
+
 desc "Verifies test_data environment looks good"
 task "test_data:verify_config" do
   config = TestData::VerifiesConfiguration.new.call
@@ -30,17 +41,7 @@ desc "Initialize test_data's interactive database"
 task "test_data:initialize" => ["test_data:verify_config", :environment] do
   next run_in_test_data_env("test_data:initialize") if wrong_env?
 
-  begin
-    unless TestData::DetectsDatabaseEmptiness.new.empty?
-      raise TestData::Error.new("Database '#{TestData.config.database_name}' already exists and is not empty. To re-initialize it, drop it first (e.g. `rake test_data:drop_database`)")
-    end
-  rescue TestData::Error => e
-    raise e
-  rescue
-    # Only (anticipated) cause for raise here is DB did not exist
-    Rake::Task["test_data:create_database"].invoke
-  end
-
+  create_database_or_else_blow_up_if_its_not_empty!
   if TestData::VerifiesDumpsAreLoadable.new.call(quiet: true)
     Rake::Task["test_data:load"].invoke
   else
@@ -60,6 +61,8 @@ end
 desc "Dumps the interactive test_data database"
 task "test_data:load" => ["test_data:verify_config", :environment] do
   next run_in_test_data_env("test_data:load") if wrong_env?
+
+  create_database_or_else_blow_up_if_its_not_empty!
 
   unless TestData::VerifiesDumpsAreLoadable.new.call
     fail "Cannot load schema & data into database '#{TestData.config.database_name}'"
