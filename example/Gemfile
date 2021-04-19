@@ -9,6 +9,7 @@ gem "bootsnap"
 group :development, :test, :test_data do
   gem "test_data", path: ".."
   gem "standard"
+  gem "pry-rails"
 end
 
 group :test do
