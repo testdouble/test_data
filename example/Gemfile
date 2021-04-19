@@ -6,6 +6,11 @@ gem "puma"
 
 gem "bootsnap"
 
+group :development, :test, :test_data do
+  gem "test_data", path: ".."
+  gem "standard"
+end
+
 group :test do
   gem "capybara", ">= 3.26"
   gem "selenium-webdriver"

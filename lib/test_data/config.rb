@@ -8,11 +8,11 @@ module TestData
   end
 
   class Configuration
-    # Where to save dumps of your test data
-    attr_accessor :data_dump_path
-
     # Where to save dumps of your test data's schema
     attr_accessor :schema_dump_path
+
+    # Where to save dumps of your test data
+    attr_accessor :data_dump_path
 
     attr_reader :pwd, :database_yaml_path
 
@@ -28,8 +28,8 @@ module TestData
 
     def initialize(pwd:)
       @pwd = pwd
-      @data_dump_path = "test/support/test_data/data.sql"
       @schema_dump_path = "test/support/test_data/schema.sql"
+      @data_dump_path = "test/support/test_data/data.sql"
       @database_yaml_path = "config/database.yml"
     end
 
