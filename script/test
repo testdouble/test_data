@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+PS4='[script/test:${LINENO}] $ '
 set -e
+set -x
 
 cd example
 bundle
@@ -13,6 +15,8 @@ bin/rake db:reset
 bin/rake test_data:install
 bin/rake test_data:dump
 bin/rails test test/integration/basic_boops_test.rb
+bin/rails test test/integration/parallel_boops_with_fixtures_test.rb
+bin/rails test test/integration/parallel_boops_without_fixtures_test.rb
 
 # Test using the test_data env to interactively create test data
 RAILS_ENV=test_data rails runner "5.times { Boop.create! }"
