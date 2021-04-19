@@ -62,11 +62,9 @@ GEM
       zeitwerk (~> 2.3)
     addressable (2.7.0)
       public_suffix (>= 2.0.2, < 5.0)
-    bindex (0.8.1)
     bootsnap (1.7.3)
       msgpack (~> 1.0)
     builder (3.2.4)
-    byebug (11.1.3)
     capybara (3.35.3)
       addressable
       mini_mime (>= 0.1.3)
@@ -102,8 +100,6 @@ GEM
       nio4r (~> 2.0)
     racc (1.5.2)
     rack (2.2.3)
-    rack-mini-profiler (2.3.1)
-      rack (>= 1.2.0)
     rack-test (1.1.0)
       rack (>= 1.0, < 3)
     rails (6.1.3.1)
@@ -148,11 +144,6 @@ GEM
     thor (1.1.0)
     tzinfo (2.0.4)
       concurrent-ruby (~> 1.0)
-    web-console (4.1.0)
-      actionview (>= 6.0.0)
-      activemodel (>= 6.0.0)
-      bindex (>= 0.4.0)
-      railties (>= 6.0.0)
     webdrivers (4.6.0)
       nokogiri (~> 1.6)
       rubyzip (>= 1.3.0)
@@ -168,20 +159,13 @@ PLATFORMS
   arm64-darwin-20
 
 DEPENDENCIES
-  bootsnap (>= 1.4.4)
-  byebug
+  bootsnap
   capybara (>= 3.26)
-  pg (~> 1.1)
-  puma (~> 5.0)
-  rack-mini-profiler (~> 2.0)
-  rails (~> 6.1.3, >= 6.1.3.1)
+  pg
+  puma
+  rails
   selenium-webdriver
-  tzinfo-data
-  web-console (>= 4.1.0)
   webdrivers
-
-RUBY VERSION
-   ruby 3.0.1p64
 
 BUNDLED WITH
    2.2.15
