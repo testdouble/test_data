@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd example
+bundle
+
+# Set up test_data
+bin/rake test_data:install
+
+# Dump the database
+bin/rake test_data:dump
+
+# Run the first test (coupled to only seeds being in the DB)
+bin/rails test test/integration/basic_boops_test.rb
+
+# Unset file changes
+git checkout config/database.yml

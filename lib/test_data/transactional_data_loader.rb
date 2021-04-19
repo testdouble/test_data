@@ -1,0 +1,70 @@
+require "fileutils"
+
+module TestData
+  def self.load_data_dump
+    @transactional_data_loader ||= TransactionalDataLoader.new
+    @transactional_data_loader.load_data_dump
+  end
+
+  def self.rollback(to: :after_data_load)
+    raise Error.new("rollback called before load_data_dump") unless @transactional_data_loader.present?
+    @transactional_data_loader.rollback(to: to)
+  end
+
+  def self.reset
+    @transactional_data_loader.reset
+  end
+
+  class TransactionalDataLoader
+    def initialize
+      @config = TestData.config
+      @save_points = []
+    end
+
+    def load_data_dump
+      create_save_point(:before_data_load) if save_point?(:before_data_load)
+      unless save_point?(:after_data_load)
+        execute_data_dump
+        create_save_point(:after_data_load)
+      end
+    end
+
+    def rollback(to:)
+      return unless save_point?(to)
+      rollback_save_point(to)
+    end
+
+    def reset
+      execute("rollback")
+      @save_points = []
+    end
+
+    private
+
+    def execute_data_dump
+      search_path = execute("show search_path").first["search_path"]
+      execute(File.read(@config.data_dump_full_path))
+      execute <<~SQL
+        select pg_catalog.set_config('search_path', '#{search_path}', false)
+      SQL
+    end
+
+    def save_point?(name)
+      @save_points.include?(name)
+    end
+
+    def create_save_point(name)
+      execute("savepoint __test_data_gem_#{name}")
+      @save_points << name
+    end
+
+    def rollback_save_point(name)
+      execute("savepoint __test_data_gem_#{name}")
+      @save_points = @save_points.take(@save_points.index(name) + 1)
+    end
+
+    def execute(sql)
+      ActiveRecord::Base.connection.execute(sql)
+    end
+  end
+end

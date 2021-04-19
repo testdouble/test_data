@@ -17,3 +17,7 @@
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# Ignore files that are intentionally generated / asserted by the tests
+/config/environments/test_data.rb
+/test/support/test_data

@@ -5,5 +5,11 @@ require "rails/test_help"
 class ActiveSupport::TestCase
   parallelize(workers: :number_of_processors)
 
-  # Add more helper methods to be used by all tests here...
+  def setup
+    TestData.load_data_dump
+  end
+
+  def teardown
+    TestData.rollback
+  end
 end

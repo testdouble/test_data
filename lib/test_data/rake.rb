@@ -41,7 +41,7 @@ task "test_data:initialize" => ["test_data:verify_config", :environment] do
     Rake::Task["test_data:create_database"].invoke
   end
 
-  if TestData::VerifiesDumpsAreLoadable.new.call
+  if TestData::VerifiesDumpsAreLoadable.new.call(quiet: true)
     Rake::Task["test_data:load"].invoke
   else
     ActiveRecord::Tasks::DatabaseTasks.load_schema_current(ActiveRecord::Base.schema_format, ENV["SCHEMA"], "test_data")

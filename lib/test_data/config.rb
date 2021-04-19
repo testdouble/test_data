@@ -14,6 +14,12 @@ module TestData
     # Where to save dumps of your test data
     attr_accessor :data_dump_path
 
+    # Where to save dumps of data needed by the test_data env but excluded from your tests
+    attr_accessor :non_test_data_dump_path
+
+    # Tables to exclude from test data dumps
+    attr_accessor :non_test_data_tables
+
     attr_reader :pwd, :database_yaml_path
 
     def self.full_path_reader(*relative_path_readers)
@@ -24,13 +30,15 @@ module TestData
       end
     end
 
-    full_path_reader :data_dump_path, :schema_dump_path, :database_yaml_path
+    full_path_reader :schema_dump_path, :data_dump_path, :non_test_data_dump_path, :database_yaml_path
 
     def initialize(pwd:)
       @pwd = pwd
       @schema_dump_path = "test/support/test_data/schema.sql"
       @data_dump_path = "test/support/test_data/data.sql"
+      @non_test_data_dump_path = "test/support/test_data/non_test_data.sql"
       @database_yaml_path = "config/database.yml"
+      @non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
     end
 
     def database_yaml
