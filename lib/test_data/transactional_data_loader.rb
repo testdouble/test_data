@@ -11,10 +11,6 @@ module TestData
     @transactional_data_loader.rollback(to: to)
   end
 
-  def self.__debug_transaction_info
-    puts @transactional_data_loader.__debug_transaction_info
-  end
-
   class TransactionalDataLoader
     SavePoint = Struct.new(:name, :transaction, keyword_init: true)
 
@@ -25,7 +21,6 @@ module TestData
     end
 
     def load_data_dump
-      # ActiveRecord::Base.connection.pool.lock_thread = true # TODO manage this
       create_save_point(:before_data_load) unless save_point?(:before_data_load)
       unless save_point?(:after_data_load)
         execute_data_dump
@@ -37,19 +32,6 @@ module TestData
     def rollback(to:)
       return unless save_point?(to)
       rollback_save_point(to)
-    end
-
-    def __debug_transaction_info
-      <<~MSG
-        Dump count: #{@dump_count}
-        Save points: [
-        #{@save_points.map { |sp|
-          <<~SP
-            Name: #{sp.name}
-            Open: #{sp.transaction.open?}
-          SP
-        }.join(",\n")}]
-      MSG
     end
 
     private
@@ -78,15 +60,12 @@ module TestData
     def rollback_save_point(name)
       if (save_point = @save_points.find { |sp| sp.name == name }) && save_point.transaction.open?
         save_point.transaction.rollback
-        # TODO -- will this close the TX or rollback to it?
       end
       purge_closed_save_points!
-      # puts "Open save points: #{@save_points.select { |sp| sp.transaction.open? }.map(&:name)}"
     end
 
     def purge_closed_save_points!
       @save_points = @save_points.select { |save_point|
-        puts "purging #{save_point.name}" unless save_point.transaction.open?
         save_point.transaction.open?
       }
     end
