@@ -18,6 +18,7 @@ module TestData
     end
 
     def load_data_dump
+      create_transaction_if_necessary
       create_save_point(:before_data_load) if save_point?(:before_data_load)
       unless save_point?(:after_data_load)
         execute_data_dump
@@ -32,6 +33,16 @@ module TestData
 
     private
 
+    def reset_save_point_memory
+      @save_points = []
+    end
+
+    def create_transaction_if_necessary
+      return if ActiveRecord::Base.connection.transaction_open?
+      reset_save_point_memory
+      ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
+    end
+
     def execute_data_dump
       search_path = execute("show search_path").first["search_path"]
       execute(File.read(@config.data_dump_full_path))
@@ -41,7 +52,11 @@ module TestData
     end
 
     def save_point?(name)
-      @save_points.include?(name)
+      if ActiveRecord::Base.connection.transaction_open?
+        @save_points.include?(name)
+      else
+        reset_save_point_memory
+      end
     end
 
     def create_save_point(name)
@@ -50,7 +65,7 @@ module TestData
     end
 
     def rollback_save_point(name)
-      execute("savepoint __test_data_gem_#{name}")
+      execute("rollback to savepoint __test_data_gem_#{name}")
       @save_points = @save_points.take(@save_points.index(name) + 1)
     end
 
