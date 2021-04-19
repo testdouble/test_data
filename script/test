@@ -5,22 +5,36 @@ set -e
 cd example
 bundle
 
-# Set up test_data
+# Avoid test pollution by clearing out any initial state that might be lingering
+rm -rf test/support/test_data
+bin/rake db:reset
+
+# Test basic initial usage
 bin/rake test_data:install
-
-# Dump the database
 bin/rake test_data:dump
-
-# Run the first test (coupled to only seeds being in the DB)
 bin/rails test test/integration/basic_boops_test.rb
+
+# Test using the test_data env to interactively create test data
+RAILS_ENV=test_data rails runner "5.times { Boop.create! }"
+bin/rake test_data:dump
+bin/rails test test/integration/updated_boops_test.rb
+
+# Test a migration being added and run and an out-of-date dump being loaded
+cp ../test/fixtures/20210418220133_add_beep_to_boops.rb db/migrate
+bin/rake db:migrate
+bin/rake db:test:prepare
+bin/rake test_data:drop_database
+bin/rake test_data:load
+RAILS_ENV=test_data bin/rake db:migrate
+bin/rake test_data:dump
+bin/rails test test/integration/migrated_boops_test.rb
 
 # Cleanup
 
 # Delete the test_data database
 bin/rake test_data:drop_database
-
 # Unset file changes
 git checkout config/database.yml
-
+git checkout db/schema.rb
 # Delete all untracked files (e.g. dumps, env config)
 git clean -xdf .
