@@ -3,7 +3,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 
 class ActiveSupport::TestCase
-  parallelize(workers: :number_of_processors)
+  parallelize(workers: 1)
 
   def setup
     TestData.load_data_dump
