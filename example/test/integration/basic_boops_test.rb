@@ -1,6 +1,6 @@
 require "test_helper"
 
-class BasicBoopsTest < ActionDispatch::IntegrationTest
+class BasicBoopsTest < SerializedNonTransactionalTestCase
   i_suck_and_my_tests_are_order_dependent!
 
   def test_contains_initially_seeded_boops
