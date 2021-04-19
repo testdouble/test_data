@@ -4,6 +4,7 @@ require "rails/test_help"
 
 class ActiveSupport::TestCase
   parallelize(workers: 1)
+  self.use_transactional_tests = false
 
   def setup
     TestData.load_data_dump
