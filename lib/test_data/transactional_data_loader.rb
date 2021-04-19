@@ -11,17 +11,25 @@ module TestData
     @transactional_data_loader.rollback(to: to)
   end
 
+  def self.__debug_transaction_info
+    puts @transactional_data_loader.__debug_transaction_info
+  end
+
   class TransactionalDataLoader
+    SavePoint = Struct.new(:name, :transaction, keyword_init: true)
+
     def initialize
       @config = TestData.config
       @save_points = []
+      @dump_count = 0
     end
 
     def load_data_dump
-      create_transaction_if_necessary
-      create_save_point(:before_data_load) if save_point?(:before_data_load)
+      # ActiveRecord::Base.connection.pool.lock_thread = true # TODO manage this
+      create_save_point(:before_data_load) unless save_point?(:before_data_load)
       unless save_point?(:after_data_load)
         execute_data_dump
+        @dump_count += 1
         create_save_point(:after_data_load)
       end
     end
@@ -31,17 +39,20 @@ module TestData
       rollback_save_point(to)
     end
 
+    def __debug_transaction_info
+      <<~MSG
+        Dump count: #{@dump_count}
+        Save points: [
+        #{@save_points.map { |sp|
+          <<~SP
+            Name: #{sp.name}
+            Open: #{sp.transaction.open?}
+          SP
+        }.join(",\n")}]
+      MSG
+    end
+
     private
-
-    def reset_save_point_memory
-      @save_points = []
-    end
-
-    def create_transaction_if_necessary
-      return if ActiveRecord::Base.connection.transaction_open?
-      reset_save_point_memory
-      ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
-    end
 
     def execute_data_dump
       search_path = execute("show search_path").first["search_path"]
@@ -52,21 +63,32 @@ module TestData
     end
 
     def save_point?(name)
-      if ActiveRecord::Base.connection.transaction_open?
-        @save_points.include?(name)
-      else
-        reset_save_point_memory
-      end
+      purge_closed_save_points!
+      @save_points.any? { |sp| sp.name == name }
     end
 
     def create_save_point(name)
-      execute("savepoint __test_data_gem_#{name}")
-      @save_points << name
+      save_point = SavePoint.new(
+        name: name,
+        transaction: ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
+      )
+      @save_points << save_point
     end
 
     def rollback_save_point(name)
-      execute("rollback to savepoint __test_data_gem_#{name}")
-      @save_points = @save_points.take(@save_points.index(name) + 1)
+      if (save_point = @save_points.find { |sp| sp.name == name }) && save_point.transaction.open?
+        save_point.transaction.rollback
+        # TODO -- will this close the TX or rollback to it?
+      end
+      purge_closed_save_points!
+      # puts "Open save points: #{@save_points.select { |sp| sp.transaction.open? }.map(&:name)}"
+    end
+
+    def purge_closed_save_points!
+      @save_points = @save_points.select { |save_point|
+        puts "purging #{save_point.name}" unless save_point.transaction.open?
+        save_point.transaction.open?
+      }
     end
 
     def execute(sql)
