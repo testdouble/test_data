@@ -313,20 +313,47 @@ The `test_data` gem is still brand new and doesn't cover every use case just
 yet. Here are some existing assumptions and limitations:
 
 * You're using Postgres
+
 * You're using Rails 6 or higher
-* Your app does not use [multi-database
+
+* Your app does not rely on Rails' [multi-database
   support](https://guides.rubyonrails.org/active_record_multiple_databases.html)
+
 * The gem only supports one test data environment and dump per application
+
 * Your app has Rails-generated `bin/rake` and `bin/rails` binstubs and that they
-  are in working
-* The database.yml generator assumes you have a working `&default` alias to base
-  the test_data database configuration on
-* All tests have the same setting for `use_transactional_tests` (whether true or
-  false), or else separates test runs so as to not intermingle them.
+  are in working order
+
+* The `database.yml` generator assumes you have a working `&default` alias from
+  which to extend the `test_data` database configuration
 
 ## Fears, Uncertainties, and Doubts
 
-### How will I handle merge conflicts with lots of feature branches all adding to the `test_data` database dumps?
+### How will I handle merge conflicts in these SQL files if I have lots of people working on lots of feature branches all adding to the `test_data` database dumps?
+
+In a word: thoughtfully!
+
+First, in terms of expectations-setting, you should expect your test data SQL
+dumps to churn at roughly the same rate as your schema does.
+
+Once an application's initial development stabilizes, the rate of schema changes
+tends to slow dramatically. If your schema isn't changing frequently and you're
+not running data migrations against production very often, it might make the
+most sense to let this concern present itself as a real problem before
+attempting to solve it, as you're likely to find that other best-practices
+around collaboration and deployment (frequent merges, continuous integration,
+coordinating breaking changes) will also manage this risk. The reason that the
+dumps are stored as plain SQL (aside from the fact that git's text compression
+is very good) is to make merge conflicts with other branches feasible, if not
+entirely painless.
+
+However, if your app is in the very initial stages of development and you're
+making breaking changes to your schema very frequently, our best advice is to
+hold off a bit on writing _any_ integration tests, as they'll be more likely to
+frustrate your ability to rapidly iterate while also never being up-to-date long
+enough to be relied upon to detect bugs. Once you you have a reasonably stable
+feature working end-to-end, that's a good moment to start adding integration
+tests (and thus pulling in a test data gem like this one to help you).
 
 ### We already have thousands of tests that depend on Rails fixtures or [factory_bot](https://github.com/thoughtbot/factory_bot), can we start using `test_data` without throwing them away and starting over!
 
@@ -336,10 +363,10 @@ this [talk on test suite
 design](https://blog.testdouble.com/talks/2014-05-25-breaking-up-with-your-test-suite/)
 for more).
 
-You can, of course, include factories, fixtures, and `test_data` in the same
-test cases, but it'd probably get confusing in a hurry—especially if the same
-tests came to depend on more than one test data source. As a result, we'd
-recommend splitting them apart somehow.
+You can, of course, include Rails fixtures, `factory_bot`, and `test_data` in
+the same test cases, but it'd probably get confusing in a hurry—especially if
+the same tests came to depend on more than one test data source. As a result,
+we'd recommend splitting them apart somehow.
 
 Suppose you have this in your `test_helper.rb`:
 
