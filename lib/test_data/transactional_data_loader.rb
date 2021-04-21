@@ -1,18 +1,17 @@
 require "fileutils"
 
 module TestData
-  def self.load_data_dump
+  def self.load
     @transactional_data_loader ||= TransactionalDataLoader.new
-    @transactional_data_loader.load_data_dump
+    @transactional_data_loader.load
   end
 
-  def self.rollback
-    raise Error.new("rollback called before load_data_dump") unless @transactional_data_loader.present?
-    @transactional_data_loader.rollback_between_tests
-  end
-
-  def self.reset
-    @transactional_data_loader&.reset
+  def self.rollback(to: :after_data_load)
+    @transactional_data_loader ||= TransactionalDataLoader.new
+    case to
+    when :after_data_load then @transactional_data_loader.rollback_to_after_data_load
+    when :before_data_load then @transactional_data_loader.rollback_to_before_data_load
+    end
   end
 
   class TransactionalDataLoader
@@ -21,19 +20,19 @@ module TestData
       @save_points = []
     end
 
-    def load_data_dump
+    def load
       return if save_point_active?(:after_data_load)
       create_save_point(:before_data_load) unless save_point_active?(:before_data_load)
       execute_data_dump
       create_save_point(:after_data_load)
     end
 
-    def rollback_between_tests
+    def rollback_to_after_data_load
       rollback_save_point(:after_data_load)
       create_save_point(:after_data_load)
     end
 
-    def reset
+    def rollback_to_before_data_load
       rollback_save_point(:before_data_load)
     end
 
@@ -54,7 +53,6 @@ module TestData
 
     def create_save_point(name)
       raise Error.new("Could not create test_data savepoint '#{name}', because it was already active!") if save_point_active?(name)
-
       @save_points << SavePoint.new(name)
     end
 

@@ -1,15 +1,13 @@
 require "test_helper"
 
 class ModeSwitchingTestCase < ActiveSupport::TestCase
-  fixtures []
-
   def self.test_data_mode(mode)
     if mode == :factory_bot
       require "factory_bot_rails"
       include FactoryBot::Syntax::Methods
 
       setup do
-        TestData.reset
+        TestData.rollback(to: :before_data_load)
         ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
       end
 
@@ -21,7 +19,7 @@ class ModeSwitchingTestCase < ActiveSupport::TestCase
       self.use_transactional_tests = false
 
       setup do
-        TestData.load_data_dump
+        TestData.load
       end
 
       teardown do

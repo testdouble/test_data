@@ -7,7 +7,7 @@ class SerializedNonTransactionalTestCase < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   def setup
-    TestData.load_data_dump
+    TestData.load
   end
 
   def teardown
@@ -21,7 +21,7 @@ class ParallelizedTransactionalFixturefullTestCase < ActiveSupport::TestCase
   fixtures :all
 
   def setup
-    TestData.load_data_dump
+    TestData.load
   end
 
   # use_transactional_tests will cause a single rollback on teardown
@@ -32,7 +32,7 @@ class ParallelizedNonTransactionalFixturelessTestCase < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   def setup
-    TestData.load_data_dump
+    TestData.load
   end
 
   def teardown
