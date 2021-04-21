@@ -10,6 +10,7 @@ group :development, :test, :test_data do
   gem "test_data", path: ".."
   gem "standard"
   gem "pry-rails"
+  gem "factory_bot_rails", require: false
 end
 
 group :test do

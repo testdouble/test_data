@@ -85,6 +85,11 @@ GEM
     concurrent-ruby (1.1.8)
     crass (1.0.6)
     erubi (1.10.0)
+    factory_bot (6.1.0)
+      activesupport (>= 5.0.0)
+    factory_bot_rails (6.1.0)
+      factory_bot (~> 6.1.0)
+      railties (>= 5.0.0)
     globalid (0.4.2)
       activesupport (>= 4.2.0)
     i18n (1.8.10)
@@ -198,6 +203,7 @@ PLATFORMS
 DEPENDENCIES
   bootsnap
   capybara (>= 3.26)
+  factory_bot_rails
   pg
   pry-rails
   puma

@@ -16,17 +16,17 @@ module TestData
       )
 
       load_dump(
-        name: "test data",
-        database_name: @config.database_name,
-        relative_path: @config.data_dump_path,
-        full_path: @config.data_dump_full_path
-      )
-
-      load_dump(
         name: "non-test data",
         database_name: @config.database_name,
         relative_path: @config.non_test_data_dump_path,
         full_path: @config.non_test_data_dump_full_path
+      )
+
+      load_dump(
+        name: "test data",
+        database_name: @config.database_name,
+        relative_path: @config.data_dump_path,
+        full_path: @config.data_dump_full_path
       )
     end
 
