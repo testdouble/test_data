@@ -21,34 +21,28 @@ module TestData
     end
 
     def load
-      __debug("pre-load")
       ensure_after_load_save_point_is_active_if_data_is_loaded!
-      return __debug("aborting load") if save_point_active?(:after_data_load)
+      return if save_point_active?(:after_data_load)
       create_save_point(:before_data_load)
       execute_data_dump
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
-      __debug("post-load")
     end
 
     def rollback_to_after_data_load
-      __debug("rolling back after-load")
       rollback_save_point(:after_data_load)
       create_save_point(:after_data_load)
-      __debug("rolled back after-load")
     end
 
     def rollback_to_before_data_load
-      __debug("rolling back before-load")
       rollback_save_point(:before_data_load)
-      __debug("rolled back before-load")
     end
 
     private
 
     def ensure_after_load_save_point_is_active_if_data_is_loaded!
       if !save_point_active?(:after_data_load) && ar_internal_metadata_shows_test_data_is_loaded?
-        warn "Test Data is loaded, but the after-data-load save point was rolled back. Recreating save point…"
+        # "Test Data is loaded, but the after-data-load save point was rolled back. Recreating save point…"
         create_save_point(:after_data_load)
       end
     end
@@ -96,30 +90,6 @@ module TestData
 
     def execute(sql)
       ActiveRecord::Base.connection.execute(sql)
-    end
-
-    def __debug(s = "")
-      puts "DEBUG: #{s} | #{ActiveRecord::Base.connection.instance_variable_get("@config")[:database]} | Boops: #{Boop.count} | SPs: #{@save_points.select(&:active?).map { |sp| sp.transaction.state.object_id }}"
-    end
-
-    def __transactions
-      ActiveRecord::Base.connection.transaction_manager.instance_variable_get("@stack").map { |t|
-        {
-          id: t.state.object_id,
-          save_point: @save_points.find { |sp| sp.transaction.state.equal?(t.state) }&.name,
-          children: t.state.instance_variable_get("@children")&.map(&:object_id),
-          final: t.state.finalized?
-        }
-      }
-    end
-
-    def __print_transactions
-      puts "  transactions:"
-      __transactions.each do |t|
-        t.each do |k, v|
-          puts "    #{k}: #{v}"
-        end
-      end
     end
   end
 end
