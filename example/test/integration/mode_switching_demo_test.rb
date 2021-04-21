@@ -7,7 +7,7 @@ class ModeSwitchingTestCase < ActiveSupport::TestCase
       include FactoryBot::Syntax::Methods
 
       setup do
-        TestData.rollback(to: :before_data_load)
+        TestData.rollback(:before_data_load)
         ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
       end
 

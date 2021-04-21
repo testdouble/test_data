@@ -6,11 +6,13 @@ module TestData
     @transactional_data_loader.load
   end
 
-  def self.rollback(to: :after_data_load)
+  def self.rollback(save_point_name = :after_data_load)
     @transactional_data_loader ||= TransactionalDataLoader.new
-    case to
-    when :after_data_load then @transactional_data_loader.rollback_to_after_data_load
-    when :before_data_load then @transactional_data_loader.rollback_to_before_data_load
+    case save_point_name
+    when :after_data_load
+      @transactional_data_loader.rollback_to_after_data_load
+    when :before_data_load
+      @transactional_data_loader.rollback_to_before_data_load
     end
   end
 
