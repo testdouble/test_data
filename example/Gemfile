@@ -11,6 +11,7 @@ group :development, :test, :test_data do
   gem "standard"
   gem "pry-rails"
   gem "factory_bot_rails", require: false
+  gem "noncommittal"
 end
 
 group :test do

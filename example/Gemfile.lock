@@ -107,6 +107,7 @@ GEM
     nio4r (2.5.7)
     nokogiri (1.11.3-arm64-darwin)
       racc (~> 1.4)
+    noncommittal (0.2.0)
     parallel (1.20.1)
     parser (3.0.1.0)
       ast (~> 2.4.1)
@@ -204,6 +205,7 @@ DEPENDENCIES
   bootsnap
   capybara (>= 3.26)
   factory_bot_rails
+  noncommittal
   pg
   pry-rails
   puma
