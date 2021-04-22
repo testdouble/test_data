@@ -31,9 +31,6 @@ jobs:
       matrix:
         ruby-version: ['2.6', '2.7', '3.0']
 
-    env:
-      BUNDLE_GEMFILE: example/Gemfile #<- only get one to cache and it's a lot bigger than the root one
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Ruby
