@@ -22,10 +22,8 @@ jobs:
       postgres:
         image: postgres:13
         env:
-          #POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ""
-        ports:
-          - 5432:5432
+          POSTGRES_USER: "postgres"
+          POSTGRES_HOST_AUTH_METHOD: trust
 
     strategy:
       matrix:
