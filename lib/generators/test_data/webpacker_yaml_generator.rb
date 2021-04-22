@@ -7,7 +7,7 @@ module TestData
 
     def call
       if Configurators::WebpackerYaml.new.verify.looks_good?
-        TestData.log.info "'test_data' section not needed in config/webpacker.yml"
+        TestData.log.debug "'test_data' section not needed in config/webpacker.yml"
       else
         inject_into_file "config/webpacker.yml", after: AFTER_DEVELOPMENT_WEBPACK_STANZA_REGEX do
           " &development"
