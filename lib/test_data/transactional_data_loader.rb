@@ -1,9 +1,9 @@
 require "fileutils"
 
 module TestData
-  def self.load
+  def self.load(transactions: true)
     @transactional_data_loader ||= TransactionalDataLoader.new
-    @transactional_data_loader.load
+    @transactional_data_loader.load(transactions: transactions)
   end
 
   def self.rollback(save_point_name = :after_data_load)
@@ -22,13 +22,17 @@ module TestData
       @save_points = []
     end
 
-    def load
-      ensure_after_load_save_point_is_active_if_data_is_loaded!
-      return if save_point_active?(:after_data_load)
-      create_save_point(:before_data_load)
-      execute_data_dump
-      record_ar_internal_metadata_that_test_data_is_loaded
-      create_save_point(:after_data_load)
+    def load(transactions: true)
+      if transactions
+        ensure_after_load_save_point_is_active_if_data_is_loaded!
+        return if save_point_active?(:after_data_load)
+        create_save_point(:before_data_load)
+        execute_data_dump
+        record_ar_internal_metadata_that_test_data_is_loaded
+        create_save_point(:after_data_load)
+      else
+        execute_data_dump
+      end
     end
 
     def rollback_to_after_data_load

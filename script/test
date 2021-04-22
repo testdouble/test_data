@@ -39,6 +39,9 @@ RAILS_ENV=test_data bin/rake db:migrate
 bin/rake test_data:dump
 bin/rails test test/integration/migrated_boops_test.rb
 
+# Run a test that commits test data thru to the database
+bin/rails test test/integration/transaction_committing_boops_test.rb
+
 # Cleanup
 
 # Delete the test_data database
