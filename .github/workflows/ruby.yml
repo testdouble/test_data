@@ -18,6 +18,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      PGHOST: "localhost"
+      PGPORT: "5432"
+
     services:
       postgres:
         image: postgres:13
