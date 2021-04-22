@@ -20,6 +20,15 @@ module TestData
     # Tables to exclude from test data dumps
     attr_accessor :non_test_data_tables
 
+    # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
+    def log_level
+      TestData.log.level
+    end
+
+    def log_level=(level)
+      TestData.log.level = level
+    end
+
     attr_reader :pwd, :database_yaml_path
 
     def self.full_path_reader(*relative_path_readers)

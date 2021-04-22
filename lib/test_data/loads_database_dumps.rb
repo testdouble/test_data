@@ -36,7 +36,7 @@ module TestData
       dump_pathname = Pathname.new(full_path)
       FileUtils.mkdir_p(File.dirname(dump_pathname))
       if system "psql -q -d #{database_name} < #{dump_pathname}"
-        puts "Loaded #{name} from '#{relative_path}' into database '#{database_name}' "
+        TestData.log.info "Loaded #{name} from '#{relative_path}' into database '#{database_name}' "
       else
         raise "Failed while attempting to load #{name} from '#{relative_path}' into database '#{database_name}'"
       end

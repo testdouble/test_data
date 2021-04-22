@@ -51,7 +51,7 @@ module TestData
 
     def record_ar_internal_metadata_that_test_data_is_loaded
       if ar_internal_metadata_shows_test_data_is_loaded?
-        warn "Attempted to record that test data is loaded in ar_internal_metadata, but record already existed. Perhaps a previous test run committed your test data?"
+        log.warn "Attempted to record that test data is loaded in ar_internal_metadata, but record already existed. Perhaps a previous test run committed your test data?"
       else
         ActiveRecord::InternalMetadata.create!(key: "test_data:loaded", value: "true")
       end

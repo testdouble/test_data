@@ -24,9 +24,9 @@ desc "Verifies test_data environment looks good"
 task "test_data:verify_config" do
   config = TestData::VerifiesConfiguration.new.call
   unless config.looks_good?
-    puts "The test_data gem is not configured correctly. Try 'rake test_data:configure'?\n"
+    TestData.log.warn "The test_data gem is not configured correctly. Try 'rake test_data:configure'?\n"
     config.problems.each do |problem|
-      puts "  - #{problem}"
+      TestData.log.warn "  - #{problem}"
     end
     fail
   end
@@ -71,7 +71,7 @@ task "test_data:load" => ["test_data:verify_config", :environment] do
   TestData::LoadsDatabaseDumps.new.call
 
   if ActiveRecord::Base.connection.migration_context.needs_migration?
-    warn "Warning: There are pending migrations for database '#{TestData.config.database_name}'. To run them, run:\n\n  RAILS_ENV=test_data bin/rake db:migrate\n\n"
+    TestData.log.warn "There are pending migrations for database '#{TestData.config.database_name}'. To run them, run:\n\n  RAILS_ENV=test_data bin/rake db:migrate\n\n"
   end
 end
 

@@ -18,6 +18,9 @@ module TestData
 
           # Tables whose data shouldn't be loaded into tests
           # config.non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
+
+          # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
+          # config.log_level = :info
         end
 
         Rails.application.configure do

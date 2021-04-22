@@ -6,7 +6,7 @@ module TestData
 
     def call
       if Configurators::DatabaseYaml.new.verify.looks_good?
-        warn "'test_data' section already defined in config/database.yml"
+        TestData.log.info "'test_data' section already defined in config/database.yml"
       else
         app_name = Rails.application.railtie_name.chomp("_application")
         inject_into_file "config/database.yml", before: BEFORE_TEST_DATABASE_STANZA_REGEX do
