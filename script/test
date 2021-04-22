@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 PS4='[script/test:${LINENO}] $ '
-set -e
+set -euo pipefail
 set -x
 
 # Make sure the main project installs & passes its own rake
