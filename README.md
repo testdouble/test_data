@@ -62,7 +62,7 @@ Now that your database is initialized comes the fun part! It's time to start up
 your server in the new environment and create some records by interacting with
 your system.
 
-#### Running the server and other commands
+#### Running the server (or other commands)
 
 To run your server against the new `test_data` database:
 
@@ -94,8 +94,31 @@ and starting this step over until you get your system state how you want it.
 
 ### Phase 3: Dumping your test data
 
-TODO
-dump, commit
+Once you have your test data how you want it, it's time to dump the schema and
+data to SQL files that can be committed to version control and loaded by your
+tests. (It's a little counter-intuitive at first, but the `test_data`
+environment and database are only for creating and maintaining your test data,
+they're only helpful to your tests when they're loaded in your `test`
+environment's database!)
+
+To dump your SQL files, just run:
+
+```
+$ bin/rake test_data:dump
+```
+
+This will dump:
+
+* Schema DDL in `test/support/test_data/schema.sql`
+* Test data in `test/support/test_data/data.sql`
+* Non-test data (`ar_internal_metadata` and `schema_migrations`) in
+  `test/support/test_data/non_test_data.sql`
+
+(More details and configuration notes can be found in the [Rake task's
+reference](https://github.com/testdouble/test_data#test_datadump).)
+
+Once you've made your initial set of dumps, briefly inspect them and—if they
+look good—commit them.
 
 ### Phase 4: Using your data in your tests
 
@@ -216,9 +239,10 @@ alongside `development` and `test`.
 
 ### TestData.config
 
-The generated `config/environments/test_data.rb` file will include a call to
-`TestData.config`, which takes a block that yields the mutable configuration
-object (similar to Rails' application config):
+The [generated `config/environments/test_data.rb`
+file](/lib/generators/test_data/environment_file_generator.rb) will include a
+call to `TestData.config`, which takes a block that yields the mutable
+configuration object (similar to Rails' application config):
 
 ```ruby
 TestData.config do |config|
@@ -233,6 +257,12 @@ TestData.config do |config|
 
   # Tables whose data shouldn't be loaded into tests
   # config.non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
+
+  # Tables whose data should be excluded from all dumps (does not affect schema DDL)
+  # config.non_dumped_tables = []
+
+  # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
+  # config.log_level = :info
 end
 ```
 
@@ -240,6 +270,8 @@ end
 
 This is the method designed to be used by your tests to load your test data
 dump into your test database so that your tests can depend on the data.
+
+#### Loading with the speed & safety of transaction savepoints
 
 For the sake of speed and integrity, `TestData.load` is designed to be rolled
 back to the point _immediately after_ importing your test data between each
@@ -268,6 +300,39 @@ still present but the `after_data_load` savepoint has been rolled back),
 and create a new `:after_data_load` savepoint. This way, your tests can call
 `TestData.load` in every `setup` method or `before_each` hook and be confident
 that the data will only be loaded if necessary.
+
+#### Loading without transactions
+
+For most cases, we strongly recommend using the default transactional testing
+strategy, both because it's faster and because it reduces incidents of test
+pollution. However, if you need your test data to be loaded by multiple
+processes, over multiple connections, and so on, you'll need to commit the test
+data to your test database during your test run. (Cleaning up after each test
+run becomes an exercise for the reader; a lot of folks use and like
+[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) for
+this.
+
+To load the test data without transactions, simply call
+`TestData.load(transactions: false)`. You might imagine something like this if
+you were loading the data just once for the full run of a test suite:
+
+```ruby
+DatabaseCleaner.strategy = :truncation
+
+RSpec.configure do |config|
+  config.before :all do
+    TestData.load(transactions: false)
+  end
+
+  config.after :all do
+    DatabaseCleaner.clean
+  end
+end
+```
+
+Note that subsequent calls won't try to detect whether the data is already
+loaded and will try to re-insert the data, which will almost invariably result
+in primary key conflicts.
 
 ### TestData.rollback
 
@@ -329,6 +394,40 @@ yet. Here are some existing assumptions and limitations:
 
 ## Fears, Uncertainties, and Doubts
 
+
+### But we use and like `factory_bot` and so I am inclined to dislike everything about this
+
+If you use `factory_bot` and all of these are true:
+
+* Your integration tests are super fast and not getting significantly slower
+  over time
+
+* A single change to a factory rarely results in test failures that (rather than
+  indicating a bug in the production code) instead require that each of those
+  tests be updated to get back to a passing state
+
+* The number of associated records generated between your most-used, default
+  factories are representative of production data, as opposed to just generating
+  "one of everything" (i.e. you don't have multiple `User` factories with names
+  like `:user` and `:basic_user` and `:lite_user` and
+  `:plain_user_no_associations_allowed`)
+
+* Your most-invoked factories generate realistic attributes, as opposed to
+  representing the sum-of-all-edge-cases with every boolean flag enabled and
+  optional field filled
+
+If none of these things are true, then congratulations! You are using
+`factory_bot` the right way! (And if you've been using it extensively for more
+than two years and can honestly say that all of the above is true, please
+[contact Justin](mailto:justin@testdouble.com), because he would love to meet
+with you, as he's never seen a team accomplish this).
+
+However, if any of the above might be reasonably used to describe your test
+suite's use of `factory_bot`, these are the sorts of failure modes that
+`test_data` was designed to address and we hope you'll consider it with an open
+mind. At the same time, we acknowledge that large test suites can't be rewritten
+and migrated to a different source of test data overnight—nor should they be!
+
 ### How will I handle merge conflicts in these SQL files if I have lots of people working on lots of feature branches all adding to the `test_data` database dumps?
 
 In a word: thoughtfully!
@@ -363,77 +462,67 @@ this [talk on test suite
 design](https://blog.testdouble.com/talks/2014-05-25-breaking-up-with-your-test-suite/)
 for more).
 
-You can, of course, include Rails fixtures, `factory_bot`, and `test_data` in
-the same test cases, but it'd probably get confusing in a hurry—especially if
-the same tests came to depend on more than one test data source. As a result,
-we'd recommend splitting them apart somehow.
+You certainly _could_ include Rails fixtures, `factory_bot`, and `test_data` in
+the same test cases, but we wouldn't recommend it. Integration tests inevitably
+become coupled to the data that's available to them, and if a test is written in
+the presence of fixtures, records created by a factory, and a `test_data` SQL
+dump, it is likely to become dependent on all three, even unintentionally. This
+would result in the test having more ways to fail than necessary and make it
+harder to simplify your test data strategy and dependencies later. That's why we
+recommend segregating integration tests that use different types of test data.
 
-Suppose you have this in your `test_helper.rb`:
+One approach is to define different types of tests based on different data
+sources (like [this
+test](https://github.com/testdouble/test_data/blob/master/example/test/integration/mode_switching_demo_test.rb)
+in the example app). However, this strategy is insufficient, because a naive
+approach would likely result in superfluous resource-intensive [reloading of the
+test data SQL by calling `TestData.load` and
+TestData.rollback(:before_data_load)](https://github.com/testdouble/test_data#rolling-back-to-before-the-data-was-loaded)
+numerous times in a single test run. As a result, you should strive to find a
+solution that will partition the tests by their test data source, so they can
+each take advantage of the speed & safety of running each test in an
+always-rolled-back transaction.
 
-``` ruby
-class ActiveSupport::TestCase
-  include FactoryBot::Syntax::Methods
-end
-```
-
-You might consider breaking out two subclasses, one that includes the factory
-method, and one that calls `TestData.load`:
-
-```ruby
-class FactoryBotTestCase < ActiveSupport::TestCase
-  include FactoryBot::Syntax::Methods
-end
-
-class TestDataTestCase < ActiveSupport::TestCase
-  self.use_transactional_tests = false
-  def setup
-    TestData.load
-  end
-
-  def teardown
-    TestData.rollback
-  end
-end
-```
-
-Alternatively, you could pull that test data election into a custom class method
-so that each existing test file would declare what source of test data they use,
-and you could gradually migrate your tests over time:
-
-```ruby
-class ActiveSupport::TestCase
-  def self.test_data_type(mode)
-    if mode == :factory_bot
-      include FactoryBot::Syntax::Methods
-    else
-    end
-  end
-end
-
-class TestDataTestCase < ActiveSupport::TestCase
-  self.use_transactional_tests = false
-  def setup
-    TestData.load
-  end
-
-  def teardown
-    TestData.rollback
-  end
-end
-```
-
-### Why can't I save multiple database dumps for different scenarios?
+### Why can't I save multiple database dumps to cover different scenarios?
 
 For the same reason you (probably) don't have multiple production databases: the
-fact that Rails apps are monolithic and consolidated is a big reason that
-they're so productive and comprehensible. This gem is not
-[VCR](https://github.com/vcr/vcr) for databases. If you were to design
-separate test data dumps for each feature, team, or concern, you'd also have
-more moving parts to manage, more complexity to communicate, and more things to
-fall into disrepair.
+fact that Rails apps are monolithic and everything is consolidated is a big
+reason why they're so productive and comprehensible. This gem is not
+[VCR](https://github.com/vcr/vcr) for databases. If you were to design separate
+test data dumps for each feature, team, or concern, you'd also have more moving
+parts to maintain, more complexity to communicate, and more pieces to fall into
+disrepair.
 
+By having a single `test_data` database that grows up with your application just
+like `production` does—with both having their schemas and data migrated
+incrementally over time—your integration tests that depend on `test_data` will
+have an early opportunity to catch bugs that otherwise wouldn't be found until
+they were deployed into a long-lived environment like staging or (gasp!)
+production itself.
 
+### Are you sure I should commit these SQL dumps? They're way too big!
 
+If the dump files generated by `test_data:dump` are absolutely massive, consider the cause:
+
+1. If you inadvertently created more data than necessary, you might consider
+   resetting (or rolling back) your changes and making another attempt at
+   generating a more minimal set of test data
+
+2. If certain tables have a lot of records but aren't very relevant to your
+   tests (e.g. audit logs), you might consider either of these options:
+
+    * Add those tables to the `config.non_test_data_tables` configuration array,
+      where they'd still be committed to git, but wouldn't loaded by your tests
+
+    * Exclude data from those tables entirely by adding them to
+      `config.non_dumped_tables`, but be sure to validate that you can
+      reinitialize your `test_data` database without them using `test_data:load`
+
+3. If the dumps are _necessarily_ really big (some apps are complex!), consider
+   looking into [git-lfs](https://git-lfs.github.com) for tracking them without
+   impacting the size and performance of the git slug. (See [GitHub's
+   documentation](https://docs.github.com/en/github/managing-large-files/working-with-large-files)
+   on what their service supports)
 
 ### But tests should stand on their own, not coupled to some invisible, shared state!
 
