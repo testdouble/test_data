@@ -124,7 +124,55 @@ this](#are-you-sure-i-should-commit-these-sql-dumps-theyre-way-too-big)).
 
 ### Phase 4: Using your data in your tests
 
-TODO
+Finally, now that you've dumped the contents of your `test_data` database, you
+can start using the burgeoning universe of realistically-created test data in
+your tests!
+
+To accomplish this, you'll likely want to add hooks to run before & after each
+test case—first to load your test data into the `test` database, and then to
+rollback to undo any changes made by the test. The `test_data` gem helps you
+accomplish this by offering [TestData.load](#testdataload) and
+[TestData.rollback](#testdatarollback) methods.
+
+If you're using (Rails' default) Minitest and want to include your test data
+with every test, you can add these hooks to `ActiveSupport::TestCase`:
+
+```ruby
+class ActiveSupport::TestCase
+  def setup
+    TestData.load
+  end
+
+  def teardown
+    TestData.rollback
+  end
+end
+```
+
+If you use [RSpec](https://rspec.info), you can accomplish the same thing with
+global `before(:each)` and `after(:each)` hooks in your `rails_helper.rb` file:
+
+```ruby
+RSpec.configure do |config|
+  config.before(:each) do
+    TestData.load
+  end
+
+  config.after(:each) do
+    TestData.rollback
+  end
+end
+```
+
+That should be all you need to have access to your test data in all of your
+tests, along with the speed and data integrity of wrapping those tests in an
+always-rolled-back transaction. For more information and to learn how all this
+works, see the [API reference](#api-reference).
+
+If you have existing tests that depend on factories or fixtures, or if you don't
+want all Rails-aware tests to have access to your test data, you might want to
+consider splitting your tests into multiple suites. ([More
+here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over).)
 
 ### Phase 5: Keeping your test data up-to-date
 
@@ -285,7 +333,7 @@ test—that way your test suite only pays the cost of importing the SQL file onc
 but each of your tests can enjoy a clean slate on which to build their own
 scenarios without fear of data inserted by one test polluting the next. (This is
 similar to how Rails fixtures'
-`[use_transactional_tests](https://edgeguides.rubyonrails.org/testing.html#testing-parallel-transactions)`
+[use_transactional_tests](https://edgeguides.rubyonrails.org/testing.html#testing-parallel-transactions)
 option works.) The `load` method accomplishes this by using ActiveRecord's
 transaction API to participate in Rails nested-transaction state management
 (which ultimately relies on Postgres
