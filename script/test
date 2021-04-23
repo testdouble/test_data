@@ -22,6 +22,7 @@ bin/rake db:setup
 bin/rake test_data:install
 bin/rake test_data:dump
 bin/rails test test/integration/basic_boops_test.rb
+bundle exec rspec spec/requests/boops_spec.rb
 bin/rails test test/integration/mode_switching_demo_test.rb
 bin/rails test test/integration/parallel_boops_with_fixtures_test.rb
 bin/rails test test/integration/parallel_boops_without_fixtures_test.rb

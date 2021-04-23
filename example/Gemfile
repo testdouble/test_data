@@ -12,6 +12,7 @@ group :development, :test, :test_data do
   gem "pry-rails"
   gem "factory_bot_rails", require: false
   gem "noncommittal"
+  gem "rspec-rails"
 end
 
 group :test do
