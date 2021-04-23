@@ -39,7 +39,9 @@ module TestData
     def dump(type:, database_name:, relative_path:, full_path:, name: type, flags: "")
       dump_pathname = Pathname.new(full_path)
       FileUtils.mkdir_p(File.dirname(dump_pathname))
-      if system "pg_dump #{database_name} --no-tablespaces --no-owner --inserts --#{type}-only #{flags} -f #{dump_pathname}"
+      command = "pg_dump #{database_name} --no-tablespaces --no-owner --inserts --#{type}-only #{flags} -f #{dump_pathname}"
+      TestData.log.debug("Running #{type} SQL dump command:\n  #{command}")
+      if system(command)
         TestData.log.info "Dumped database '#{database_name}' #{name} to '#{relative_path}'"
       else
         raise "Failed while attempting to  dump '#{database_name}' #{name} to '#{relative_path}'"
