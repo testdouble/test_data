@@ -19,6 +19,9 @@ module TestData
           # Tables whose data shouldn't be loaded into tests
           # config.non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
 
+          # Tables whose data should be excluded from SQL dumps (still dumps their schema DDL)
+          # config.dont_dump_these_tables = []
+
           # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
           # config.log_level = :info
         end

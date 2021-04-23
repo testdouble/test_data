@@ -42,10 +42,31 @@ bin/rails test test/integration/migrated_boops_test.rb
 # Run a test that commits test data thru to the database
 bin/rails test test/integration/transaction_committing_boops_test.rb
 
+# Add a second migration, this time without wiping the test_data db and with a table we want to ignore
+cp ../test/fixtures/20210423114916_add_table_we_want_to_ignore.rb db/migrate
+cp ../test/fixtures/chatty_audit_log.rb app/models
+bin/rake db:migrate
+RAILS_ENV=test_data bin/rake db:migrate
+RAILS_ENV=test_data rails runner "50.times { ChattyAuditLog.create!(message: 'none of this matters') }"
+# Gsub config file and uncomment + add table to excluded table list
+ruby -e '
+  path = "config/environments/test_data.rb"
+  IO.write(path, File.open(path) { |f|
+    f.read.gsub("# config.dont_dump_these_tables = []", "config.dont_dump_these_tables = [\"chatty_audit_logs\"]")
+  })
+'
+bin/rake test_data:dump
+if grep -q "chatty_audit_logs" "test/support/test_data/data.sql"; then
+  echo "Dump contained excluded table 'chatty_audit_logs'"
+  exit 1
+fi
+bin/rake db:test:prepare
+bin/rails test test/integration/dont_dump_tables_test.rb
+
 # Cleanup
 
-# Delete the test_data database
-bin/rake test_data:drop_database
+# Delete databases
+bin/rake db:drop
 # Unset file changes
 git checkout config/database.yml
 git checkout db/schema.rb

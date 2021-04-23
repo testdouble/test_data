@@ -1,0 +1,2 @@
+class ChattyAuditLog < ApplicationRecord
+end

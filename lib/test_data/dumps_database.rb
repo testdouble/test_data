@@ -21,7 +21,7 @@ module TestData
         database_name: @config.database_name,
         relative_path: @config.data_dump_path,
         full_path: @config.data_dump_full_path,
-        flags: @config.non_test_data_tables.map { |t| "-T #{t}" }.join(" ")
+        flags: (@config.non_test_data_tables + @config.dont_dump_these_tables).uniq.map { |t| "-T #{t}" }.join(" ")
       )
 
       dump(
@@ -30,7 +30,7 @@ module TestData
         database_name: @config.database_name,
         relative_path: @config.non_test_data_dump_path,
         full_path: @config.non_test_data_dump_full_path,
-        flags: @config.non_test_data_tables.map { |t| "-t #{t}" }.join(" ")
+        flags: (@config.non_test_data_tables - @config.dont_dump_these_tables).uniq.map { |t| "-t #{t}" }.join(" ")
       )
     end
 

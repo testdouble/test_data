@@ -54,11 +54,13 @@ desc "Initialize test_data Rails environment & configure database"
 task "test_data:install" => ["test_data:configure", "test_data:initialize"]
 
 desc "Dumps the interactive test_data database"
-task "test_data:dump" => "test_data:verify_config" do
+task "test_data:dump" => ["test_data:verify_config", :environment] do
+  next run_in_test_data_env("test_data:dump") if wrong_env?
+
   TestData::DumpsDatabase.new.call
 end
 
-desc "Dumps the interactive test_data database"
+desc "Loads the schema and data SQL dumps into the test_data database"
 task "test_data:load" => ["test_data:verify_config", :environment] do
   next run_in_test_data_env("test_data:load") if wrong_env?
 

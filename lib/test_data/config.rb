@@ -20,6 +20,9 @@ module TestData
     # Tables to exclude from test data dumps
     attr_accessor :non_test_data_tables
 
+    # Tables to exclude from all dumps
+    attr_accessor :dont_dump_these_tables
+
     # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
     def log_level
       TestData.log.level
@@ -48,6 +51,7 @@ module TestData
       @non_test_data_dump_path = "test/support/test_data/non_test_data.sql"
       @database_yaml_path = "config/database.yml"
       @non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
+      @dont_dump_these_tables = []
     end
 
     def database_yaml
