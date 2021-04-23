@@ -35,11 +35,15 @@ jobs:
         ruby-version: ['2.7', '3.0']
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ matrix.ruby-version }}
-        bundler-cache: true
-    - name: Run tests
-      run: script/test
+      uses: actions/checkout@v2
+
+      name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        env:
+
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+
+      name: Run tests
+        run: script/test
