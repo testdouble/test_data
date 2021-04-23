@@ -52,7 +52,7 @@ RAILS_ENV=test_data bin/rake db:migrate
 RAILS_ENV=test_data rails runner "50.times { ChattyAuditLog.create!(message: 'none of this matters') }"
 # Gsub config file and uncomment + add table to excluded table list
 ruby -e '
-  path = "config/environments/test_data.rb"
+  path = "config/initializers/test_data.rb"
   IO.write(path, File.open(path) { |f|
     f.read.gsub("# config.dont_dump_these_tables = []", "config.dont_dump_these_tables = [\"chatty_audit_logs\"]")
   })

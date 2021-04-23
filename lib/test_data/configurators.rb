@@ -3,6 +3,7 @@ module TestData
     def self.all
       [
         EnvironmentFile,
+        Initializer,
         DatabaseYaml,
         WebpackerYaml
       ].map(&:new)
