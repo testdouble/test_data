@@ -316,6 +316,7 @@ TestData.config do |config|
   # config.dont_dump_these_tables = []
 
   # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
+  # Can also be set with env var TEST_DATA_LOG_LEVEL
   # config.log_level = :info
 end
 ```

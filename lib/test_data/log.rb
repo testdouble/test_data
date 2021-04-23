@@ -29,7 +29,7 @@ module TestData
     end
 
     def reset
-      @level = :info
+      self.level = ENV["TEST_DATA_LOG_LEVEL"]&.to_sym || :info
       @writer = DEFAULT_WRITER
     end
 

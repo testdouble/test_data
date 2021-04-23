@@ -75,6 +75,14 @@ bin/rake db:migrate
 bin/rake db:test:prepare
 bin/rails test test/integration/boops_that_boop_boops_test.rb
 
+# Make sure it loads cleanly again
+bin/rake test_data:drop_database
+if [ ! bin/rake test_data:load | grep -q "ERROR" ]; then
+  echo "Running test_data:load after adding FK constraints led to errors"
+  exit 1
+fi
+bin/rails test test/integration/boops_that_boop_boops_test.rb
+
 # Cleanup
 cd ..
 ./script/reset_example_app

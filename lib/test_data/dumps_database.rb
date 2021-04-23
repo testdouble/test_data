@@ -41,6 +41,8 @@ module TestData
       dump_pathname = Pathname.new(full_path)
       FileUtils.mkdir_p(File.dirname(dump_pathname))
       if execute("pg_dump #{database_name} --no-tablespaces --no-owner --inserts --#{type}-only #{flags} -f #{dump_pathname}")
+        prepend_set_replication_role!(full_path) if type == :data
+
         TestData.log.info "Dumped '#{database_name}' #{name} to '#{relative_path}'"
       else
         raise "Failed while attempting to  dump '#{database_name}' #{name} to '#{relative_path}'"
@@ -59,6 +61,16 @@ module TestData
         TestData.log.error(stderr)
         false
       end
+    end
+
+    def prepend_set_replication_role!(data_dump_path)
+      system <<~COMMAND
+        ed -s #{data_dump_path} <<EOF
+        1 s/^/set session_replication_role = replica;/
+        w
+        EOF
+      COMMAND
+      TestData.log.debug("Prepended replication role instruction to '#{data_dump_path}'")
     end
   end
 end
