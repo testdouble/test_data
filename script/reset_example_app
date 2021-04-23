@@ -8,7 +8,7 @@ cd example
 
 # Reset database:
 bin/rake db:drop
-dropdb example_test_data || true
+dropdb example_test_data 2>/dev/null || true
 
 # Reset files:
 git checkout config/database.yml
