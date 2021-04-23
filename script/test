@@ -66,6 +66,15 @@ fi
 bin/rake db:test:prepare
 bin/rails test test/integration/dont_dump_tables_test.rb
 
+# Test circular FK constraints
+cp ../test/fixtures/20210423190737_add_foreign_keys.rb db/migrate/
+cp ../test/fixtures/boop_with_other_boops.rb app/models/boop.rb
+RAILS_ENV=test_data bin/rake db:migrate
+bin/rake test_data:dump
+bin/rake db:migrate
+bin/rake db:test:prepare
+bin/rails test test/integration/boops_that_boop_boops_test.rb
+
 # Cleanup
 cd ..
 ./script/reset_example_app

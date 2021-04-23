@@ -1,5 +1,6 @@
 require "pathname"
 require "fileutils"
+require "open3"
 
 module TestData
   class DumpsDatabase
@@ -39,12 +40,24 @@ module TestData
     def dump(type:, database_name:, relative_path:, full_path:, name: type, flags: "")
       dump_pathname = Pathname.new(full_path)
       FileUtils.mkdir_p(File.dirname(dump_pathname))
-      command = "pg_dump #{database_name} --no-tablespaces --no-owner --inserts --#{type}-only #{flags} -f #{dump_pathname}"
-      TestData.log.debug("Running #{type} SQL dump command:\n  #{command}")
-      if system(command)
-        TestData.log.info "Dumped database '#{database_name}' #{name} to '#{relative_path}'"
+      if execute("pg_dump #{database_name} --no-tablespaces --no-owner --inserts --#{type}-only #{flags} -f #{dump_pathname}")
+        TestData.log.info "Dumped '#{database_name}' #{name} to '#{relative_path}'"
       else
         raise "Failed while attempting to  dump '#{database_name}' #{name} to '#{relative_path}'"
+      end
+    end
+
+    def execute(command)
+      TestData.log.debug("Running SQL dump command:\n  #{command}")
+      stdout, stderr, status = Open3.capture3(command)
+      if status == 0
+        TestData.log.debug(stdout)
+        TestData.log.debug(stderr)
+        true
+      else
+        TestData.log.info(stdout)
+        TestData.log.error(stderr)
+        false
       end
     end
   end

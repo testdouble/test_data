@@ -11,6 +11,7 @@ bin/rake db:drop
 dropdb example_test_data 2>/dev/null || true
 
 # Reset files:
+git checkout app/models/boop.rb
 git checkout config/database.yml
 git checkout db/schema.rb
 git clean -xdf .

@@ -67,7 +67,9 @@ module TestData
 
     def execute_data_dump
       search_path = execute("show search_path").first["search_path"]
-      execute(File.read(@config.data_dump_full_path))
+      ActiveRecord::Base.connection.disable_referential_integrity do
+        execute(File.read(@config.data_dump_full_path))
+      end
       execute <<~SQL
         select pg_catalog.set_config('search_path', '#{search_path}', false)
       SQL

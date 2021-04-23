@@ -22,6 +22,8 @@ module TestData
 
     LEVELS[0...4].each do |level|
       define_method level.to_s do |message|
+        next unless message.strip.present?
+
         @writer.call(message, level) if enabled?(level)
       end
     end
