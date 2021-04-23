@@ -56,7 +56,7 @@ ruby -e '
   })
 '
 bin/rake test_data:dump
-if grep -q "chatty_audit_logs" "test/support/test_data/data.sql"; then
+if grep -q "INSERT INTO public.chatty_audit_logs" "test/support/test_data/data.sql"; then
   echo "Dump contained excluded table 'chatty_audit_logs'"
   exit 1
 fi
