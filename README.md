@@ -38,6 +38,7 @@ This should output something like:
 
 ```
       create  config/environments/test_data.rb
+      create  config/initializers/test_data.rb
       insert  config/database.yml
       insert  config/webpacker.yml
       insert  config/webpacker.yml
@@ -148,10 +149,14 @@ This task runs several generators:
   environments](https://guides.rubyonrails.org/configuring.html#creating-rails-environments),
   too! This gem adds a new `test_data` environment intended to be paired with a
   test data database that's intended to be used to create and dump your test
-  data. This new environment file does three things (1) load your development
-  environment's configuration (2) call `TestData.config`, (3) disable migration
-  schema dumps so that you can run migrations of your `test_data` database
-  without affecting your `schema.rb` or `structure.sql`.
+  data. This new environment file loads your development environment's
+  configuration and disables migration schema dumps so that you can run
+  migrations of your `test_data` database without affecting your app's
+  `schema.rb` or `structure.sql`.
+
+* `config/initializers/test_data.rb` - Calls `TestData.config` with an empty
+  block and comments documenting the (at install-time) available options and
+  their default configuration values
 
 * `config/database.yml` - This generator adds a new `test_data` section of your
   database configuration, named with the same scheme as your other databases
@@ -240,8 +245,8 @@ alongside `development` and `test`.
 
 ### TestData.config
 
-The [generated `config/environments/test_data.rb`
-file](/lib/generators/test_data/environment_file_generator.rb) will include a
+The [generated `config/initializers/test_data.rb`
+initializer](/lib/generators/test_data/initializer_generator.rb) will include a
 call to `TestData.config`, which takes a block that yields the mutable
 configuration object (similar to Rails' application config):
 
