@@ -4,16 +4,18 @@ PS4='[script/test:${LINENO}] $ '
 set -euo pipefail
 set -x
 
-# Avoid test pollution by clearing out any initial state that might be lingering
-./script/reset_example_app
-
-# Make sure the main project installs & passes its own rake
+# Install deps and make sure gem passes its own rake
 bundle
 bundle exec rake
+cd example
+bundle
+
+# Avoid test pollution by clearing out any initial state that might be lingering
+cd ..
+./script/reset_example_app
 
 # Exercise the example app
 cd example
-bundle
 bin/rake db:setup
 
 # Test basic initial usage
