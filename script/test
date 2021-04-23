@@ -4,6 +4,9 @@ PS4='[script/test:${LINENO}] $ '
 set -euo pipefail
 set -x
 
+# Avoid test pollution by clearing out any initial state that might be lingering
+./script/reset_example_app
+
 # Make sure the main project installs & passes its own rake
 bundle
 bundle exec rake
@@ -11,10 +14,7 @@ bundle exec rake
 # Exercise the example app
 cd example
 bundle
-
-# Avoid test pollution by clearing out any initial state that might be lingering
-rm -rf test/support/test_data
-bin/rake db:reset
+bin/rake db:setup
 
 # Test basic initial usage
 bin/rake test_data:install
@@ -64,11 +64,5 @@ bin/rake db:test:prepare
 bin/rails test test/integration/dont_dump_tables_test.rb
 
 # Cleanup
-
-# Delete databases
-bin/rake db:drop
-# Unset file changes
-git checkout config/database.yml
-git checkout db/schema.rb
-# Delete all untracked files (e.g. dumps, env config)
-git clean -xdf .
+cd ..
+./script/reset_example_app

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+PS4='[script/test:${LINENO}] $ '
+set -euo pipefail
+set -x
+
+cd example
+
+# Reset database:
+bin/rake db:drop
+dropdb example_test_data || true
+
+# Reset files:
+git checkout config/database.yml
+git checkout db/schema.rb
+git clean -xdf .
