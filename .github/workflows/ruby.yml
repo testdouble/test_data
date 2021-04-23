@@ -37,8 +37,7 @@ jobs:
     steps:
       uses: actions/checkout@v2
 
-      name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@v1
         env:
           BUNDLER_GEMFILE: ${{ github.workspace }}/example/Gemfile
 
@@ -46,5 +45,4 @@ jobs:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
 
-      name: Run tests
-        run: script/test
+      run: script/test
