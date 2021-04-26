@@ -16,14 +16,20 @@ module TestData
           # Where to store SQL dumps of the test_data database non-test data
           # config.non_test_data_dump_path = "test/support/test_data/non_test_data.sql"
 
-          # Tables whose data shouldn't be loaded into tests
-          # config.non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
+          # Tables whose data shouldn't be loaded into tests.
+          #   ("ar_internal_metadata" and "schema_migrations" are always excluded)
+          # config.non_test_data_tables = []
 
           # Tables whose data should be excluded from SQL dumps (still dumps their schema DDL)
           # config.dont_dump_these_tables = []
 
+          # Tables whose data should be truncated by TestData.truncate
+          #   If left as `nil`, all tables inserted into by the SQL file at
+          #   `data_dump_path` will be truncated
+          # config.truncate_these_test_data_tables = nil
+
           # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
-          # Can also be set with env var TEST_DATA_LOG_LEVEL
+          #   Can also be set with env var TEST_DATA_LOG_LEVEL
           # config.log_level = :info
         end
       RUBY

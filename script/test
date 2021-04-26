@@ -65,6 +65,7 @@ if grep -q "INSERT INTO public.chatty_audit_logs" "test/support/test_data/data.s
 fi
 bin/rake db:test:prepare
 bin/rails test test/integration/dont_dump_tables_test.rb
+bin/rails test test/integration/load_rollback_truncate_test.rb
 
 # Test circular FK constraints
 cp ../test/fixtures/20210423190737_add_foreign_keys.rb db/migrate/

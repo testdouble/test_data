@@ -18,10 +18,19 @@ module TestData
     attr_accessor :non_test_data_dump_path
 
     # Tables to exclude from test data dumps
-    attr_accessor :non_test_data_tables
+    attr_writer :non_test_data_tables
+    def non_test_data_tables
+      (@non_test_data_tables + [
+        ActiveRecord::Base.connection.schema_migration.table_name,
+        ActiveRecord::InternalMetadata.table_name
+      ]).uniq
+    end
 
     # Tables to exclude from all dumps
     attr_accessor :dont_dump_these_tables
+
+    # Tables to truncate when TestData.truncate is called
+    attr_accessor :truncate_these_test_data_tables
 
     # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
     def log_level
@@ -50,8 +59,9 @@ module TestData
       @data_dump_path = "test/support/test_data/data.sql"
       @non_test_data_dump_path = "test/support/test_data/non_test_data.sql"
       @database_yaml_path = "config/database.yml"
-      @non_test_data_tables = ["ar_internal_metadata", "schema_migrations"]
+      @non_test_data_tables = []
       @dont_dump_these_tables = []
+      @truncate_these_test_data_tables = nil
     end
 
     def database_yaml

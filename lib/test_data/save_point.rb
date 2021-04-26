@@ -12,6 +12,7 @@ module TestData
     end
 
     def rollback!
+      warn_if_not_rollbackable!
       while active?
         connection.rollback_transaction
       end
@@ -21,6 +22,13 @@ module TestData
 
     def connection
       ActiveRecord::Base.connection
+    end
+
+    def warn_if_not_rollbackable!
+      return if active?
+      TestData.log.warn(
+        "Attempted to roll back transaction save point '#{name}', but its state was #{@transaction.state}"
+      )
     end
   end
 end
