@@ -406,32 +406,30 @@ was loaded. As a result, it is intended to be run after each test (e.g. in an
 `after_each` or `teardown`), so that the next test will have access to your test
 data and a clean slate to start from, free of any pollution in the database.
 
-#### Rolling back to _before_ the data was loaded
+#### Rolling back to _before_ test data was loaded
 
-You probably won't need to do this, but you can also call this method to
-rollback to the point just _before_ the test data was loaded with
-`TestData.rollback(:before_data_load)`. Not every test suite will need to do
-this, but places where you might want to:
+If some tests rely on data loaded by `TestData.load` and you're writing a test
+that depends on that data _not being there_, you probably want to call
+[TestData.truncate](#testdatatruncate). But if that doesn't work for your needs,
+you can also use this  method to rewind to the save point just _before_ the test
+data was loaded with `TestData.rollback(:before_data_load)`.
 
-* In an `after_all` hook (while not explicitly necessary, it's reasonable to
-  desire the test process rollback any open transactions before exiting)
-
-* When various tests in a suite use different sources of test data (e.g.
-  factories or fixtures) and you need to keep them separated, you might want to
-  ensure any test data inserted by this gem is rolled back prior to the start of
-  other types of tests ([example
-  test](https://github.com/testdouble/test_data/blob/master/example/test/integration/mode_switching_demo_test.rb))
-
-* In more "unit-ish" tests that would more clearly express their intent if they
-  instantiated their own test data and for which success might depend on the
-  database being otherwise empty
-
-**⚠️ Warning: ⚠️** If your test suite calls `TestData.rollback(:before_data_load)`
+**⚠️ Warning: ⚠️** Repeatedly rolling back to `:before_data_load` can get
+expensive! If your test suite calls `TestData.rollback(:before_data_load)`
 multiple times, it's likely you're re-loading your (possibly large) SQL file of
-test data more times than is necessary. Consider
-partitioning your test suite so that all the tests that rely on
-this test data are run as a group. This may be accomplished by configuring your
-test runner or else by running multiple test commands.
+test data more times than is necessary. Consider using
+[TestData.truncate](#testdatatruncate) to achieve a clean slate instead;
+otherwise, it might be faster to partition your test suite so that all the tests
+that rely on this test data are run as a group (as opposed to in a fully random
+or arbitrary order). This may be accomplished by configuring your test runner or
+else by running separate test commands—one for each source of test data.
+
+#### Rolling back to after test data was truncated
+
+If some of your tests call [TestData.truncate](#testdatatruncate) to clear out
+your test data, then you may want to run
+`TestData.rollback(:after_data_truncate))` to rewind your test database's state
+to when those tables were first loaded. 
 
 ## Assumptions
 
