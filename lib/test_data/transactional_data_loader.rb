@@ -45,17 +45,24 @@ module TestData
     end
 
     def rollback_to_before_data_load
-      rollback_save_point(:before_data_load)
+      if save_point_active?(:before_data_load)
+        rollback_save_point(:before_data_load)
+        # No need to recreate the save point -- TestData.load will if called
+      end
     end
 
     def rollback_to_after_data_load
-      rollback_save_point(:after_data_load)
-      create_save_point(:after_data_load)
+      if save_point_active?(:after_data_load)
+        rollback_save_point(:after_data_load)
+        create_save_point(:after_data_load)
+      end
     end
 
     def rollback_to_after_data_truncate
-      rollback_save_point(:after_data_truncate)
-      create_save_point(:after_data_truncate)
+      if save_point_active?(:after_data_truncate)
+        rollback_save_point(:after_data_truncate)
+        create_save_point(:after_data_truncate)
+      end
     end
 
     def truncate(transactions: true)

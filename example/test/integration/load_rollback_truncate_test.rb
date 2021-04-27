@@ -12,6 +12,8 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
 
   def teardown
     TestData.log.reset
+    TestData.statistics.reset
+    TestData.rollback(:before_data_load)
   end
 
   def test_loads_data_then_truncates_then_rolls_back_etc
