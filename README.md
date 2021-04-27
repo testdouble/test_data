@@ -406,6 +406,9 @@ was loaded. As a result, it is intended to be run after each test (e.g. in an
 `after_each` or `teardown`), so that the next test will have access to your test
 data and a clean slate to start from, free of any pollution in the database.
 
+(Calling `TestData.rollback` when no `:after_data_load` save point is active is
+a no-op.)
+
 #### Rolling back to _before_ test data was loaded
 
 If some tests rely on data loaded by `TestData.load` and you're writing a test
@@ -413,6 +416,9 @@ that depends on that data _not being there_, you probably want to call
 [TestData.truncate](#testdatatruncate). But if that doesn't work for your needs,
 you can also use this  method to rewind to the save point just _before_ the test
 data was loaded with `TestData.rollback(:before_data_load)`.
+
+(Calling `TestData.rollback` when no `:before_data_load` save point is active is
+a no-op.)
 
 **⚠️ Warning: ⚠️** Repeatedly rolling back to `:before_data_load` can get
 expensive! If your test suite calls `TestData.rollback(:before_data_load)`
@@ -429,7 +435,16 @@ else by running separate test commands—one for each source of test data.
 If some of your tests call [TestData.truncate](#testdatatruncate) to clear out
 your test data, then you may want to run
 `TestData.rollback(:after_data_truncate))` to rewind your test database's state
-to when those tables were first loaded. 
+to when those tables were first loaded. This may allow for writing multiple tests
+that depend on the absence of test data without repeatedly truncating all
+affected tables.
+
+(Calling `TestData.rollback` when no `:after_data_truncate` save point is active
+is a no-op.)
+
+### TestData.truncate
+
+TODO
 
 ## Assumptions
 
