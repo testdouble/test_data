@@ -11,7 +11,7 @@ TODO
 #### Adding the gem
 
 First, add `test_data` to your Gemfile. Either include it in all groups or
-ensure it's available to the `:development`, `:test`, and (all new!)
+ensure it's available to the `:development`, `:test`, and (the all new!)
 `:test_data` gem groups:
 
 ```ruby
@@ -21,14 +21,15 @@ group :development, :test, :test_data do
 end
 ```
 
-Since the `test_data` environment is designed to be interacted via a running
-server, the `:test_data` gem group should probably include everything that's
-available to the `:development` group.
+Since the `test_data` environment is designed to be interacted with just like
+`development` (i.e. with a running server and a browser) the `:test_data` gem
+group should probably include everything that's available to the `:development`
+group.
 
 #### Configuring the gem and initializing the database
 
 The gem ships with a number of Rake tasks, including `test_data:install`, which
-both generate configuration and initialize a test data database:
+will generate the necessary configuration and initialize a `test_data` database:
 
 ```
 $ bin/rake test_data:install
@@ -49,13 +50,19 @@ Created database 'yourappname_test_data'
 (1 row)
 ````
 
-As will become clear soon, the purpose of the `test_data` database is to be an
-interactive sandbox in which to generate realistic test data by actually using
-your app and then dumping the resulting state of your database for later use by
-your tests. Rather than try to imitate realistic data using factories and
-fixtures (a task which only grows more difficult as your models and their
-associations increase in complexity), your `test_data` database will always be
-realistic because your application will have generated it!
+The purpose of the `test_data` database is to provide an interactive sandbox in
+which to generate realistic test data by actually using your app and then
+dumping the resulting state of your database for later use by your tests. Rather
+than try to imitate realistic data using factories and fixtures (a task which
+only grows more difficult as your models and their associations increase in
+complexity), your `test_data` database will always be realistic because your
+application will have generated it!
+
+The database dumps are meant to be committed in git and versioned alongside your
+tests for the life of the application. Its schema & data are intended to be
+incrementally migrated over time, just like your production database. (Bonus: as
+a result, it's possible that your `test_data` database will identify migration
+bugs before they're run in production!)
 
 ### Phase 2: Interactively creating some test data
 
@@ -65,7 +72,8 @@ your system.
 
 #### Running the server (or other commands)
 
-To run your server against the new `test_data` database:
+To run your server against the new `test_data` database, set the `RAILS_ENV`
+environment variable:
 
 ```
 $ RAILS_ENV=test_data bin/rails server
@@ -78,29 +86,36 @@ number of Rails commands or Rake tasks against its database by setting
 db:migrate`, etc.)
 
 _[Aside: If you have any hiccups in getting your server to work, please [open an
-issue](/issues/new) to let us know—we may be able to expand the
-`test_data:configure` task to be more thorough!]_
+issue](/issues/new) to let us know—we may be able to improve the
+`test_data:configure` task to avoid the issue for others!]_
 
 #### Create test data by using your app
 
-You'll know how to do this part better than us; it's your app, after all.
+Time to use your app to generate some test data! You'll know how to accomplish
+this step better than anyone—it's your app, after all!
 
-Spend a little time thoughtfully using your app to generate enough data to be
-_representative_ of what would be needed to test your system's main behaviors
-(e.g. one user in each role, one type of each order, etc.), while still being
-_minimal_ enough that the universe of data will be comprehensible & memorable to
-yourself and your teammates. Your future tests will become coupled to this data
-for the long-term as your application grows and evolves, so it's worth resetting
-and starting this step over until you get your system state how you want it.
+Our advice? Spend a little time thoughtfully navigating each feature of your app
+in order to generate enough data to be _representative_ of what would be needed
+to test your system's main behaviors (e.g. one `User` for each role, one of each
+kind of `Order`, etc.), while still being _minimal_ enough that the universe of
+data will be comprehensible & memorable to yourself and your teammates.
+
+If you make a mistake, it's perfectly okay to reset the database and start over!
+Your future tests will be coupled to this data as your application grows and
+evolves over time, so it's worth getting things off to a good start. (And that's
+not to say anything needs to be perfect—you can always change things or add more
+data later, you'll just have to update your tests accordingly.)
 
 ### Phase 3: Dumping your test data
 
-Once you have your test data how you want it, it's time to dump the schema and
-data to SQL files that can be committed to version control and loaded by your
-tests. (It's a little counter-intuitive at first, but the `test_data`
-environment and database are only for creating and maintaining your test data,
-they're only helpful to your tests when they're loaded in your `test`
-environment's database!)
+Once you have your test data how you want it, it will be time to dump the schema
+and data to SQL files that can be committed to version control and loaded by
+your tests. It's a little counter-intuitive at first, but the `test_data`
+environment and database are only for _creating and persisting_ your test data!
+Your tests will, in turn, load the SQL dump of your data into the familiar
+`test` database at test time, just as if it were loading a [Rails
+fixture](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
+from a YAML file.
 
 To dump your SQL files, just run:
 
@@ -108,31 +123,35 @@ To dump your SQL files, just run:
 $ bin/rake test_data:dump
 ```
 
-This will dump:
+This will dump three files into `test/support/test_data`:
 
-* Schema DDL in `test/support/test_data/schema.sql`
-* Test data in `test/support/test_data/data.sql`
-* Non-test data (`ar_internal_metadata` and `schema_migrations`) in
-  `test/support/test_data/non_test_data.sql`
+* Schema DDL in `schema.sql`
 
-(More details and configuration notes can be found in the [Rake task's
-reference](https://github.com/testdouble/test_data#test_datadump).)
+* Test data in `data.sql`
 
-Once you've made your initial set of dumps, briefly inspect them and—if they
-look good—commit them. (And if the files are gigantic or full of noise, [read
-this](#are-you-sure-i-should-commit-these-sql-dumps-theyre-way-too-big)).
+* Non-test data (`ar_internal_metadata` and `schema_migrations` by default) in
+  `non_test_data.sql`
+
+These paths can be overridden with [TestData.config](#testdataconfig) method.
+Additional details can be found in the [test_data:dump](#test_datadump)
+Rake task reference.
+
+Once you've made your initial set of dumps, briefly inspect them and—if
+everything looks good—commit them. (And if the files are gigantic or full of
+noise, [this Q&A offers some
+ideas](#are-you-sure-i-should-commit-these-sql-dumps-theyre-way-too-big)).
 
 ### Phase 4: Using your data in your tests
 
-Finally, now that you've dumped the contents of your `test_data` database, you
-can start using the burgeoning universe of realistically-created test data in
-your tests!
+Now that you've dumped the contents of your `test_data` database, you can start
+writing tests that make use of this new universe of realistically-created test
+data!
 
 To accomplish this, you'll likely want to add hooks to run before & after each
-test case—first to load your test data into the `test` database, and then to
-rollback to undo any changes made by the test. The `test_data` gem helps you
-accomplish this by offering [TestData.load](#testdataload) and
-[TestData.rollback](#testdatarollback) methods.
+test—first to load your test data and then to rollback any changes made by the
+test. The `test_data` gem accomplishes this with its
+[TestData.load](#testdataload) and [TestData.rollback](#testdatarollback)
+methods.
 
 If you're using (Rails' default) Minitest and want to include your test data
 with every test, you can add these hooks to `ActiveSupport::TestCase`:
@@ -170,9 +189,11 @@ always-rolled-back transaction. For more information and to learn how all this
 works, see the [API reference](#api-reference).
 
 If you have existing tests that depend on factories or fixtures, or if you don't
-want all Rails-aware tests to have access to your test data, you might want to
-consider splitting your tests into multiple suites. ([More
-here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over).)
+want all of your Rails-aware tests to see this test data, you probably want to
+use [TestData.truncate](#testdatatruncate) to clear the data out before they
+run. For more on migrating to `test_data` when you have existing tests, [some
+ideas re discussed
+here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over)
 
 ### Phase 5: Keeping your test data up-to-date
 
