@@ -141,4 +141,33 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
     assert_equal 3, TestData.statistics.truncate_count
     assert_equal 2, TestData.statistics.load_count
   end
+
+  def test_does_a_lot_of_stuff_out_of_order
+    # Imagine a test-datay test runs
+    test_data_using_test = -> do
+      TestData.load # before each
+      Boop.create!
+      assert_equal 16, Boop.count
+      TestData.rollback # after each
+    end
+
+    test_data_avoiding_test = -> do
+      TestData.truncate # before each
+      Boop.create!
+      assert_equal 1, Boop.count
+      TestData.rollback(:after_data_truncate) # after each
+    end
+
+    # Run the tests separately:
+    3.times { test_data_using_test.call }
+    3.times { test_data_avoiding_test.call }
+
+    # Mix and match the tests:
+    test_data_using_test.call
+    test_data_avoiding_test.call
+    test_data_using_test.call
+    test_data_avoiding_test.call
+    test_data_using_test.call
+    test_data_avoiding_test.call
+  end
 end
