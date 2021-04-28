@@ -5,6 +5,7 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
 
   def setup
     @last_log = nil
+    TestData.log.level = :debug
     TestData.log.writer = ->(message, level) {
       @last_log = LogMessage.new(message: message, level: level)
     }
@@ -36,12 +37,6 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
     TestData.rollback(:after_data_truncate)
     assert_equal 0, Boop.count
     Boop.create!
-    assert_equal 1, Boop.count
-
-    # Verify re-load warns and does not do anything if tried on top of truncate without rollback
-    TestData.load
-    assert_match "TestData.load was called but the data has already been loaded-then-truncated", @last_log.message
-    assert_equal :warn, @last_log.level
     assert_equal 1, Boop.count
 
     # Verify default rollback works after truncate
@@ -142,7 +137,7 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
     assert_equal 2, TestData.statistics.load_count
   end
 
-  def test_does_a_lot_of_stuff_out_of_order
+  def test_suite_runs_different_tests_in_whatever_order
     # Imagine a test-datay test runs
     test_data_using_test = -> do
       TestData.load # before each
@@ -169,5 +164,32 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
     test_data_avoiding_test.call
     test_data_using_test.call
     test_data_avoiding_test.call
+  end
+
+  def test_calling_truncate_multiple_times_will_return_you_to_truncated_state
+    # In the interest of behaving similarly to .load, rollback in case the
+    # previous test doesn't have an after_each as you might hope/expect
+    3.times do
+      TestData.truncate
+      Boop.create!
+      assert_equal 1, Boop.count
+    end
+  end
+
+  def test_other_rollbacks_mess_with_transaction_state_will_debug_you
+    TestData.load
+    ActiveRecord::Base.connection.rollback_transaction # data loaded, after_data_load save point destroyed
+    TestData.load
+    assert_equal :debug, @last_log.level # debug only b/c rails fixtures will do this on every after_each if enabled
+    assert_match "Recreating the :after_data_load save point", @last_log.message
+    assert_equal 1, TestData.statistics.load_count
+
+    TestData.truncate
+    ActiveRecord::Base.connection.rollback_transaction # data loaded, after_data_truncate save point destroyed
+    TestData.truncate
+    assert_equal :debug, @last_log.level # debug only b/c rails fixtures will do this on every after_each if enabled
+    assert_match "Recreating the :after_data_truncate save point", @last_log.message
+    assert_equal 1, TestData.statistics.load_count
+    assert_equal 1, TestData.statistics.truncate_count
   end
 end

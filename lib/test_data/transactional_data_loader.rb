@@ -31,17 +31,14 @@ module TestData
     end
 
     def load(transactions: true)
-      if transactions
-        ensure_after_load_save_point_is_active_if_data_is_loaded!
-        warn_if_load_called_but_data_has_already_been_truncated
-        return if save_point_active?(:after_data_load)
-        create_save_point(:before_data_load)
-        execute_data_dump
-        record_ar_internal_metadata_that_test_data_is_loaded
-        create_save_point(:after_data_load)
-      else
-        execute_data_dump
-      end
+      return execute_data_dump unless transactions
+      ensure_after_load_save_point_is_active_if_data_is_loaded!
+      return rollback_to_after_data_load if save_point_active?(:after_data_load)
+
+      create_save_point(:before_data_load)
+      execute_data_dump
+      record_ar_internal_metadata_that_test_data_is_loaded
+      create_save_point(:after_data_load)
     end
 
     def rollback_to_before_data_load
@@ -69,7 +66,7 @@ module TestData
       return execute_data_truncate unless transactions
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       ensure_after_truncate_save_point_is_active_if_data_is_truncated!
-      return if save_point_active?(:after_data_truncate)
+      return rollback_to_after_data_truncate if save_point_active?(:after_data_truncate)
 
       if save_point_active?(:after_data_load)
         # If a test that uses the test data runs before a test that starts by
@@ -97,7 +94,7 @@ module TestData
 
     def ensure_after_load_save_point_is_active_if_data_is_loaded!
       if !save_point_active?(:after_data_load) && ar_internal_metadata_shows_test_data_is_loaded?
-        # "Test Data is loaded, but the after-data-load save point was rolled back. Recreating save point…"
+        TestData.log.debug "Test data appears to be loaded, but the :after_data_load save point was rolled back (and not by this gem). Recreating the :after_data_load save point"
         create_save_point(:after_data_load)
       end
     end
@@ -116,6 +113,7 @@ module TestData
 
     def ensure_after_truncate_save_point_is_active_if_data_is_truncated!
       if !save_point_active?(:after_data_truncate) && ar_internal_metadata_shows_test_data_is_truncated?
+        TestData.log.debug "Test data appears to be loaded, but the :after_data_truncate save point was rolled back (and not by this gem). Recreating the :after_data_truncate save point"
         create_save_point(:after_data_truncate)
       end
     end
@@ -130,12 +128,6 @@ module TestData
 
     def ar_internal_metadata_shows_test_data_is_truncated?
       ActiveRecord::InternalMetadata.find_by(key: "test_data:truncated")&.value == "true"
-    end
-
-    def warn_if_load_called_but_data_has_already_been_truncated
-      if save_point_active?(:after_data_truncate) || ar_internal_metadata_shows_test_data_is_truncated?
-        TestData.log.warn "TestData.load was called but the data has already been loaded-then-truncated in a nested transaction. Maybe you want to call `TestData.rollback(:after_data_load)` to get back to a clean slate in which your test data is loaded?"
-      end
     end
 
     def execute_data_dump
@@ -168,7 +160,7 @@ module TestData
 
     def save_point_active?(name)
       purge_closed_save_points!
-      @save_points.find { |sp| sp.name == name }&.active?
+      !!@save_points.find { |sp| sp.name == name }&.active?
     end
 
     def create_save_point(name)
