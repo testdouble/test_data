@@ -581,34 +581,34 @@ If you use `factory_bot` and all of these are true:
 * Your integration tests are super fast and not getting significantly slower
   over time
 
-* Innocuous changes to factories rarely result in unrelated test failures that
-  (rather than indicating a bug in the production code) instead require that
-  each of those tests be updated to get back to a passing state
+* Innocuous changes to factories rarely result in unrelated test failures that,
+  rather than indicating a bug in the production code, instead require that each
+  of those tests be analyzed & updated to get them passing again
 
-* The number of associated records generated between your most-used, default
-  factories are representative of production data, as opposed to just generating
-  a sprawling hierarchy of models that orders "one of everything" from the menu.
+* The number of associated records generated between your most-used factories
+  are representative of production data, as opposed to generating a sprawling
+  hierarchy of models that orders "one of everything" from the menu.
+
+* Your default factories generate models that resemble real records created by
+  your production application, as opposed to representing the
+  sum-of-all-edge-cases with every boolean flag enabled and optional attribute
+  set
 
 * You've avoided mitigating the above problems with confusingly-named and
   confidence-eroding nested factories with names like `:user` and `:basic_user`
   and `:lite_user` and `:plain_user_no_associations_allowed`
 
-* Your most-invoked factories generate models that resemble real models created
-  by your production application, as opposed to representing the
-  sum-of-all-edge-cases with every boolean flag enabled and optional attribute
-  set
-
 If none of these things are true, then congratulations! You are using
-`factory_bot` with great success! (But seriously, if you've been using factories
-extensively for more than two years and can honestly say that all of the above
-is true, please [contact Justin](mailto:justin@testdouble.com), because he would
-love to meet with you, as he's never seen a team accomplish this).
+`factory_bot` with great success! Unfortunately, in our experience, achieving
+this level of success with test factory strategies is exceedingly rare.
 
-However, if any of the above might be reasonably used to describe your test
-suite's use of `factory_bot`, these are the sorts of failure modes that
-`test_data` was designed to address and we hope you'll consider it with an open
-mind. At the same time, we acknowledge that large test suites can't be rewritten
-and migrated to a different source of test data overnight—nor should they be!
+However, if any of the above resonates with your experience using `factory_bot`,
+these are the sorts of failure modes the `test_data` gem was designed to
+address. We hope you'll consider trying it with an open mind. At the same time,
+we acknowledge that large test suites can't be rewritten and migrated to a
+different source of test data overnight—nor should they be! See our notes on
+[migrating to `test_data`
+incrementally](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over)
 
 ### How will I handle merge conflicts in these SQL files if I have lots of people working on lots of feature branches all adding to the `test_data` database dumps?
 
@@ -636,34 +636,125 @@ enough to be relied upon to detect bugs. Once you you have a reasonably stable
 feature working end-to-end, that's a good moment to start adding integration
 tests (and thus pulling in a test data gem like this one to help you).
 
-### We already have thousands of tests that depend on Rails fixtures or [factory_bot](https://github.com/thoughtbot/factory_bot), can we start using `test_data` without throwing them away and starting over!
+### We already have thousands of tests that depend on Rails fixtures or [factory_bot](https://github.com/thoughtbot/factory_bot), can we start using `test_data` without throwing them away and starting over?
 
-Yes! A little-known secret of testing is that "test suites" are nothing more
-than directories and you're allowed to make as many of them as you want (see
-this [talk on test suite
-design](https://blog.testdouble.com/talks/2014-05-25-breaking-up-with-your-test-suite/)
-for more).
+Yes! Even though your `test` database is shared by all your tests, the
+`test_data` gem was designed to play nicely with tests using `factory_bot`,
+Rails fixtures, and hand-rolled test data.
 
-You certainly _could_ include Rails fixtures, `factory_bot`, and `test_data` in
-the same test cases, but we wouldn't recommend it. Integration tests inevitably
-become coupled to the data that's available to them, and if a test is written in
-the presence of fixtures, records created by a factory, and a `test_data` SQL
-dump, it is likely to become dependent on all three, even unintentionally. This
-would result in the test having more ways to fail than necessary and make it
-harder to simplify your test data strategy and dependencies later. That's why we
-recommend segregating integration tests that use different types of test data.
+Our strongest recommendation is to write each test against only a single
+source of test data. Integration tests inevitably become coupled to the data
+that's available to them, and if a test is written in the presence of fixtures,
+records created by a factory, and a `test_data` SQL dump, it is likely to become
+dependent on all three, even unintentionally. This would result in the test
+having more ways to fail than necessary and make it harder to simplify your test
+data strategy later. Instead, consider explicitly opting into a single type of
+test data for each test.
 
-One approach is to define different types of tests based on different data
-sources (like [this
-test](https://github.com/testdouble/test_data/blob/master/example/test/integration/mode_switching_demo_test.rb)
-in the example app). However, this strategy is insufficient, because a naive
-approach would likely result in superfluous resource-intensive [reloading of the
-test data SQL by calling `TestData.load` and
-TestData.rollback(:before_data_load)](https://github.com/testdouble/test_data#rolling-back-to-before-the-data-was-loaded)
-numerous times in a single test run. As a result, you should strive to find a
-solution that will partition the tests by their test data source, so they can
-each take advantage of the speed & safety of running each test in an
-always-rolled-back transaction.
+The rest comes down to how you want to organize your tests, as discussed below.
+
+#### Approach 1: test-data-specific test subclasses
+
+If you're currently using `factory_bot` and want to add `test_data`, you might
+have something like this in your `test_helper.rb` file:
+
+```ruby
+class ActiveSupport::TestCase
+  include FactoryBot::Syntax::Methods
+end
+```
+
+Instead of including these methods with every Rails-aware test, you might
+consider pushing down new types for each source of test data:
+
+```ruby
+# Tests using data created by `test_data`
+class TestDataTestCase < ActiveSupport::TestCase
+  def setup
+    TestData.load
+  end
+
+  def teardown
+    TestData.rollback
+  end
+end
+
+# Tests using data created by `factory_bot`
+class FactoryBotTestCase < ActiveSupport::TestCase
+  include FactoryBot::Syntax::Methods
+
+  def setup
+    TestData.truncate
+  end
+
+  def teardown
+    TestData.rollback(:after_data_truncate)
+  end
+end
+```
+
+From there, the test class that each of your tests extends will indicate which
+test data strategy it uses.
+
+This approach may work in simple cases, but won't be well-suited to cases where
+you're already extending any of the half-dozen subclasses of
+`ActiveSupport::TestCase` provided by Rails (or their analogues from
+[rspec-rails](https://github.com/rspec/rspec-rails)).
+
+#### Approach 2: write a helper method to set things up for you
+
+Every situation will be different, but one strategy that suits a lot of
+circumstances to write a method to declare which type of test data strategy the
+test uses.
+
+Taking from [this
+example](/example/test/integration/better_mode_switching_demo_test.rb) test, you
+could implement a class method like this:
+
+```ruby
+class ActiveSupport::TestCase
+  def self.test_data_mode(mode)
+    case mode
+    when :factory_bot
+      require "factory_bot_rails"
+      include FactoryBot::Syntax::Methods
+
+      setup do
+        TestData.truncate
+      end
+
+      teardown do
+        TestData.rollback(:after_data_truncate)
+      end
+    when :test_data
+      setup do
+        TestData.load
+      end
+
+      teardown do
+        TestData.rollback
+      end
+    end
+  end
+end
+```
+
+And then (without any class inheritance complications), simply declare which
+kind of test you're specifying:
+
+```ruby
+class SomeFactoryUsingTest < ActiveSupport::TestCase
+  test_data_mode :factory_bot
+
+  # … tests go here
+end
+
+class SomeTestDataUsingTest < ActionDispatch::IntegrationTest
+  test_data_mode :test_data
+
+  # etc.
+end
+```
 
 ### Why can't I save multiple database dumps to cover different scenarios?
 
