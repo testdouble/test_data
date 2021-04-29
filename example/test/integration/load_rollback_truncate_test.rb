@@ -63,7 +63,7 @@ class LoadRollbackTruncateTest < ActiveSupport::TestCase
     # Warn but load anyway if rolled back to the start and then truncated
     TestData.rollback(:before_data_load)
     TestData.truncate
-    assert_equal :warn, @last_log.level
+    assert_equal :debug, @last_log.level
     assert_match "TestData.truncate was called, but data was not loaded. Loading data", @last_log.message
     assert_equal 0, Boop.count
     TestData.rollback

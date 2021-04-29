@@ -81,7 +81,7 @@ module TestData
         # should expect that the existence of :after_data_truncate save point
         # implies that it's safe to rollback to the :after_data_load save
         # point; since tests run in random order, it's likely to happen
-        TestData.log.warn("TestData.truncate was called, but data was not loaded. Loading data before truncate to preserve the documents transaction save point ordering")
+        TestData.log.debug("TestData.truncate was called, but data was not loaded. Loading data before truncate to preserve the documents transaction save point ordering")
         load(transactions: true)
       end
 
