@@ -1,8 +1,33 @@
 # The `test_data` gem
 
-## What/Why
+`test_data` is a fast, reliable, and representative system for managing your
+Rails application's test data.
 
-TODO
+It is both an alternative to
+[fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
+& [factory_bot](https://github.com/thoughtbot/factory_bot) and a broader
+workflow for building high-performance test suites that will scale with your
+application.
+
+Things it does:
+
+* Establishes a fourth Rails environment & database named `test_data` for
+  creating your test data by actually using your application, as opposed to
+  building a house of cards from Ruby DSLs or YAML files
+
+* Provides a simple API for loading your test data and cleaning up between
+  tests
+
+* Manages transactions for you, to ensure you're only loading test data once,
+  preventing pollution from leaking between tests, and providing speed &
+  isolation when run alongside tests that use other test data strategies
+
+If you use `factory_bot`, but are [open to the idea](
+#but-we-use-and-like-factory_bot-and-so-i-am-inclined-to-dislike-everything-about-this-gem)
+that there might be a better way, give `test_data` a try!
+
+_[Because the gem is still brand new, it makes a number of
+[assumptions](#assumptions) and may not work for every project just yet.]_
 
 ## Getting started guide
 
@@ -551,7 +576,55 @@ will actually roll the transaction state all the way back to the
 
 ### TestData.truncate
 
-TODO
+Do you have some tests that _shouldn't_ access your test data? Or did some
+existing tests started failing after `test_data` was added? If you want to reset
+the state of your `test` database to support these tests, you have two options:
+calling `TestData.rollback(:before_data_load)` or `TestData.truncate`. As
+discussed above, the former will do the job, but may necessitate repetitive,
+slow reloads of your test data SQL file. `TestData.truncate`, meanwhile, leans
+into the multiple nested transactions by truncating all the tables that
+`TestData.load` inserted into and makes yet another savepoint afterward, named
+`:after_data_truncate`.
+
+Most often, you'll want to call `TestData.truncate` before each test that
+should _not_ have access to your test data created with this gem. After each
+such test, it can clean up by calling `TestData.rollback(:after_data_truncate):
+
+```
+class CleanSlateTest < ActiveDispatch::IntegrationTest
+  def setup do
+      TestData.truncate
+    end
+
+  def teardown do
+    TestData.rollback(:after_data_truncate)
+  end
+end
+```
+
+By default, all tables for which there is an `INSERT INTO` statement in your
+test data SQL dump will be truncated, but you can specify which tables should be
+truncated explicitly setting the `truncate_these_test_data_tables` property on
+[TestData.config](#testdataconfig) to an array of table names.
+
+Because tests are usually run in a random order, some fault tolerance is built
+in:
+
+* If one test calls `TestData.rollback(:after_data_truncate)` in `teardown`, and
+  the next test calls `TestData.load` in `setup`, the gem will do the
+  probably-intended thing and rollback to `:after_data_load` so that the data is
+  available
+
+* If a test calls `TestData.truncate` and the `:after_data_truncate` savepoint
+  is rolled back outside the `TestData.rollback` method (e.g.
+  `ActiveRecord::Base.connection.rollback_transaction`), the method will first
+  check a memo written to `ar_internal_metadata` and recreate the
+  `:after_data_truncate` savepoint
+
+#### If you're not using transactions
+
+Just [like TestData.load](#loading-without-transactions), you can call
+`TestData.truncate(transactions: false)` and it'll commit the truncation.
 
 ## Assumptions
 
@@ -818,7 +891,7 @@ def test_exclude_cancelled_orders
   result = user.active_orders
 
   assert_includes good_order
-  assert_includes bad_order
+  refute_includes bad_order
 end
 ```
 
@@ -827,7 +900,7 @@ stops working. Maximizing the number of tests that can be written expressively
 and succinctly without the aid of an external helper is a laudable goal that
 more teams should embrace.
 
-However, what if the code you're writing doesn't need three records in the
+However, what if the code you're writing doesn't need 3 records in the
 database, but 30? Writing that much test setup would be painstaking and—despite
 being fully-encapsulated—make it hard for readers to keep track of the plot. At
 that point, you have two options:
