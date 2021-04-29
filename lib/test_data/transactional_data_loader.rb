@@ -31,12 +31,12 @@ module TestData
     end
 
     def load(transactions: true)
-      return execute_data_dump unless transactions
+      return execute_data_load unless transactions
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       return rollback_to_after_data_load if save_point_active?(:after_data_load)
 
       create_save_point(:before_data_load)
-      execute_data_dump
+      execute_data_load
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
     end
@@ -130,7 +130,7 @@ module TestData
       ActiveRecord::InternalMetadata.find_by(key: "test_data:truncated")&.value == "true"
     end
 
-    def execute_data_dump
+    def execute_data_load
       search_path = execute("show search_path").first["search_path"]
       connection.disable_referential_integrity do
         execute(File.read(@config.data_dump_full_path))
