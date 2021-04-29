@@ -229,10 +229,10 @@ here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-facto
 ### Step 5: Keeping your test data up-to-date
 
 Because your test data needs to keep working in harmony with your tests, it
-needs to be maintained for the entire life of your application. Fortunately,
+needs to be maintained for the entire life of your application. Fortunately, and
 because production databases need the same thing, we already have a fantastic
-tool for the job: Rails
-[migrations](https://guides.rubyonrails.org/active_record_migrations.html). If
+tool for the job: [Rails
+migrations](https://guides.rubyonrails.org/active_record_migrations.html). If
 your migrations are resilient enough for your production data, they'll probably
 do just fine for keeping your `test_data` environment's database up-to-date.
 
@@ -248,11 +248,19 @@ to update your `test_data` database after you've initially created it:
 3. Run any pending migrations with `RAILS_ENV=test_data bin/rake db:migrate`
 
 4. If you need to create any additional data, start up the server
-   (`RAILS_ENV=test_data bin/rails s`)
+   (`RAILS_ENV=test_data bin/rails s`) (just like [Step
+   2](#step-2-create-some-test-data))
 
 5. Export your newly-updated `test_data` database with `rake test_data:dump`
 
-6. Commit the resulting SQL files
+6. Commit the resulting SQL file
+
+It's important to consider that your test data SQL dumps are a shared, generated
+resource among your team (just like a `structure.sql` or `schema.rb` file). As a
+result, if your team doesn't integrate code frequently or if the test data
+experiences a lot of churn in coincident feature branches, you'd be right to be
+concerned that [the resulting merge conflicts could become
+significant](#how-will-i-handle-merge-conflicts-in-these-sql-files-if-i-have-lots-of-people-working-on-lots-of-feature-branches-all-adding-to-the-test_data-database-dumps).
 
 _[Some Rails teams are averse to using migrations to migrate their production
 data, preferring one-off scripts and tasks. You'll have an easier time of things
@@ -264,7 +272,7 @@ safely](https://blog.testdouble.com/posts/2014-11-04-healthy-migration-habits/#h
 
 ### test_data:install
 
-A meta-task that runs `test_data:configure` and `test_data:initialize`.
+A meta-task that runs [test_data:configure](#test_dataconfigure) and [test_data:initialize](#test_datainitialize).
 
 ### test_data:configure
 
@@ -274,20 +282,19 @@ This task runs several generators:
   `development`, `test`, and `production` environments defined by default. But
   you can [actually define custom
   environments](https://guides.rubyonrails.org/configuring.html#creating-rails-environments),
-  too! This gem adds a new `test_data` environment intended to be paired with a
-  test data database that's intended to be used to create and dump your test
-  data. This new environment file loads your development environment's
-  configuration and disables migration schema dumps so that you can run
-  migrations of your `test_data` database without affecting your app's
-  `schema.rb` or `structure.sql`.
+  too! This gem adds a new `test_data` environment and database that's intended
+  to be used to create and dump your test data. This new environment file loads
+  your `development` environment's configuration and disables migration schema
+  dumps so that you can run migrations of your `test_data` database without
+  affecting your app's `schema.rb` or `structure.sql`.
 
-* `config/initializers/test_data.rb` - Calls `TestData.config` with an empty
-  block and comments documenting the (at install-time) available options and
-  their default configuration values
+* `config/initializers/test_data.rb` - Calls [TestData.config](#testdataconfig)
+  with an empty block and comments documenting the currently-available options
+  and their default values
 
 * `config/database.yml` - This generator adds a new `test_data` section of your
   database configuration, named with the same scheme as your other databases
-  (e.g. `yourapp_test_data`). If your configuration resembles Rails' generated
+  (e.g. `your_app_test_data`). If your configuration resembles Rails' generated
   database.yml and has a working `&default` alias, then this should "just work"
 
 * `config/webpacker.yml` - The gem has nothing to do with web assets or
@@ -305,7 +312,7 @@ your seed file. Specifically:
 1. Creates the `test_data` environment's database, if it doesn't already exist
 
 2. Ensures the database is non-empty to preserve data integrity (run
-   `test_data:drop_database` first if you need to drop it)
+   `test_data:drop_database` first if it contains outdated test data)
 
 3. Checks to see if a dump of the database already exists (by default, stored in
    `test/support/test_data/`)
@@ -318,9 +325,9 @@ your seed file. Specifically:
 
 ### test_data:dump
 
-This task is designed to be run after you've created or whenever you've updated
-your test data and you want to run tests against it. The task creates several
-plain SQL dumps from your test_data environment's database:
+This task is designed to be run after you've created or updated your test data
+and you want to run tests against it. The task creates several plain SQL dumps
+from your `test_data` environment's database:
 
 * A schema-only dump, by default in `test/support/test_data/schema.sql`
 
@@ -329,14 +336,16 @@ plain SQL dumps from your test_data environment's database:
 
 * A data-only dump of records that you *don't* want loaded in your tests in
   `test/support/test_data/non_test_data.sql` (by default, this includes Rails'
-  internal tables: `ar_internal_metadata` and `schema_migrations`)
+  internal tables: `ar_internal_metadata` and `schema_migrations`, configurable
+  with [TestData.config](#testdataconfig)'s `non_test_data_tables`)
 
-It may feel wrong to commit SQL dumps to version control, but all of these files
-are designed to be committed and tracked with the rest of your repository.
+Each of these files are designed to be committed and versioned with the rest of
+your application. [TestData.config](#testdataconfig) includes several
+options to control which tables are exported into which group.
 
 ### test_data:load
 
-This task will load your SQL dumps, into your `test_data` database by:
+This task will load your SQL dumps into your `test_data` database by:
 
 1. Verifying the test_data environment's datbase is empty (creating it if it
    doesn't exist)
@@ -359,14 +368,14 @@ $ bin/rake test_data:dump
 ### test_data:create_database
 
 This task will create the `test_data` environment's database if it does not
-already exist. This task also enhances the `db:create` task so that
-`test_data` is also created alongside `development` and `test`.
+already exist. This task also enhances Rails' `db:create` task so that
+`test_data` is created along with `development` and `test`.
 
 ### test_data:drop_database
 
 This task will drop the `test_data` environment's database if it exists. This
-task also enhances the `db:drop` task so that `test_data` is also dropped
-alongside `development` and `test`.
+task also enhances Rails' `db:drop` task so that `test_data` is dropped
+along with `development` and `test`.
 
 ## API Reference
 
@@ -409,48 +418,53 @@ end
 ### TestData.load
 
 This is the method designed to be used by your tests to load your test data
-dump into your test database so that your tests can depend on the data.
+into your `test` database so that your tests can rely on it.
 
 #### Loading with the speed & safety of transaction savepoints
 
-For the sake of speed and integrity, `TestData.load` is designed to be rolled
-back to the point _immediately after_ importing your test data between each
-test—that way your test suite only pays the cost of importing the SQL file once,
-but each of your tests can enjoy a clean slate on which to build their own
-scenarios without fear of data inserted by one test polluting the next. (This is
-similar to how Rails fixtures'
+For the sake of speed and integrity, `TestData.load` is designed to take
+advantage of nested transactions ([Postgres
+savepoints](https://www.postgresql.org/docs/current/sql-savepoint.html)). By
+default, data is loaded in a transaction and intended to be rolled back to the
+point _immediately after_ the data was imported after each test. This way, your
+test suite only pays the cost of importing the SQL file once, but each of your
+tests can enjoy a clean slate on which to build their own scenarios without fear
+of data inserted by one test polluting the next. (This is similar to how Rails
+fixtures'
 [use_transactional_tests](https://edgeguides.rubyonrails.org/testing.html#testing-parallel-transactions)
-option works.) The `load` method accomplishes this by using ActiveRecord's
-transaction API to participate in Rails nested-transaction state management
-(which ultimately relies on Postgres
-[savepoints](https://www.postgresql.org/docs/current/sql-savepoint.html) under
-the hood).
+option works.)
 
 To help think through the method's behavior, the method nicknames its
-transactions `:before_data_load` and `:after_data_load`
+transactions `:before_data_load` and `:after_data_load`. The first time you call
+`TestData.load`:
 
-1. If `:after_data_load` is already open, the method does nothing
-2. Starts transaction `:before_data_load` if it's not already open
-3. Executes the SQL in the test data dump file into the test database
-4. Starts transaction `:after_data_load`
+1. Starts the `:before_data_load` transaction
+2. Executes the SQL found in the data dump (e.g.
+   `test/support/test_data/data.sql`) to insert your test data
+3. Starts the `:after_data_load` transaction
 
-Additionally, if something else triggers a rollback (such that your test data is
-still present but the `after_data_load` savepoint has been rolled back),
-`test_data` will also write a note in `ar_internal_metadata` to detect the issue
-and create a new `:after_data_load` savepoint. This way, your tests can call
-`TestData.load` in every `setup` method or `before_each` hook and be confident
-that the data will only be loaded if necessary.
+If the method is called and the `:after_data_load` savepoint is already active
+(indicating that the data is loaded), the method rolls back to
+`:after_data_load`, inferring that the user's intention is to have a clean load
+of the test data.
+
+_[As an additional safeguard, if a rollback is triggered unexpectedly (calling
+`ActiveRecord::Base.connection.rollback_transaction` instead of
+`TestData.rollback`), `test_data` writes a note that the data is loaded in
+`ar_internal_metadata`. That way, the next time `TestData.load` is called, the
+gem will recreate the `:after_data_load` savepoint rather than attempting to
+erroneously reload your SQL data dump.]_
 
 #### Loading without transactions
 
 For most cases, we strongly recommend using the default transactional testing
-strategy, both because it's faster and because it reduces incidents of test
+strategy, both because it's faster and because it reduces the risk of test
 pollution. However, if you need your test data to be loaded by multiple
-processes, over multiple connections, and so on, you'll need to commit the test
-data to your test database during your test run. (Cleaning up after each test
-run becomes an exercise for the reader; a lot of folks use and like
+processes or over multiple connections, you may need to commit the test data to
+your test database during your test run. (Cleaning up after each test run
+becomes an exercise for the reader; a lot of folks use and like
 [database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) for
-this.
+this.)
 
 To load the test data without transactions, simply call
 `TestData.load(transactions: false)`. You might imagine something like this if
@@ -470,16 +484,22 @@ RSpec.configure do |config|
 end
 ```
 
-Note that subsequent calls won't try to detect whether the data is already
-loaded and will try to re-insert the data, which will almost invariably result
-in primary key conflicts.
+Note that subsequent `TestData.load(transactions: false)` calls won't be able to
+detect whether the data is already loaded and will try to re-insert the data,
+which will almost certainly result in primary key conflicts.
 
 ### TestData.rollback
+
+Because the gem loads your data in a transaction, it makes it easy to rollback
+to any of its defined savepoints (`:before_data_load`, `:after_data_load`, and
+`:after_data_truncate`). In most cases you'll want to roll back to
+`:after_data_load` after each test, so that's what `TestData.rollback` will do
+when not passed an argument. More details on the three savepoints follows below.
 
 #### Rolling back to after the data was loaded between tests
 
 When `TestData.rollback` is passed no arguments or called more explicitly as
-`TestData.rollback(:after_data_load)`, this method will rollback to the
+`TestData.rollback(:after_data_load)`, the method will rollback to the
 `:after_data_load` transaction savepoint taken immediately after the SQL dump
 was loaded. As a result, it is intended to be run after each test (e.g. in an
 `after_each` or `teardown`), so that the next test will have access to your test
@@ -492,34 +512,42 @@ a no-op.)
 
 If some tests rely on data loaded by `TestData.load` and you're writing a test
 that depends on that data _not being there_, you probably want to call
-[TestData.truncate](#testdatatruncate). But if that doesn't work for your needs,
-you can also use this  method to rewind to the save point just _before_ the test
-data was loaded with `TestData.rollback(:before_data_load)`.
+[TestData.truncate](#testdatatruncate). But if that doesn't work for your needs
+and you _really_ need to rewind to a point before the data was loaded, you can
+call `TestData.rollback(:before_data_load)`.
 
 (Calling `TestData.rollback` when no `:before_data_load` save point is active is
 a no-op.)
 
-**⚠️ Warning: ⚠️** Repeatedly rolling back to `:before_data_load` can get
+**⚠️ Warning:** Repeatedly loading and rolling back to `:before_data_load` is
 expensive! If your test suite calls `TestData.rollback(:before_data_load)`
 multiple times, it's likely you're re-loading your (possibly large) SQL file of
 test data more times than is necessary. Consider using
-[TestData.truncate](#testdatatruncate) to achieve a clean slate instead;
-otherwise, it might be faster to partition your test suite so that all the tests
-that rely on this test data are run as a group (as opposed to in a fully random
-or arbitrary order). This may be accomplished by configuring your test runner or
-else by running separate test commands—one for each source of test data.
+[TestData.truncate](#testdatatruncate) to achieve a clean slate instead. Failing
+that, it might be faster to partition your test suite so that similar tests are
+run as a group (as opposed to in a fully random or arbitrary order) to avoid
+unnecessary rollbacks and reloads. This partitioning could be accomplished by
+either configuring your test runner or by simply running separate test
+commands for each group of tests.
 
 #### Rolling back to after test data was truncated
 
 If some of your tests call [TestData.truncate](#testdatatruncate) to clear out
-your test data, then you may want to run
-`TestData.rollback(:after_data_truncate))` to rewind your test database's state
-to when those tables were first loaded. This may allow for writing multiple tests
-that depend on the absence of test data without repeatedly truncating all
-affected tables.
+your test data after it's been loaded, then you will likely want to run
+`TestData.rollback(:after_data_truncate)` after each such test. This will rewind
+your test database's state to when those tables were first truncated—effectively
+re-cleaning the slate so the next test's database won't be polluted.
 
 (Calling `TestData.rollback` when no `:after_data_truncate` save point is active
 is a no-op.)
+
+_[Keeping this transaction state in your head can be tricky, so the gem does its
+best to guess what a test needs based on context. For example, if your tests are
+run in a random order, you won't know whether or not the next test will depend
+on data loaded by `test_data`, so you couldn't know which savepoint to rollback
+to. As a result, if the next test's setup calls `TestData.load`, `test_data`
+will actually roll the transaction state all the way back to the
+`:after_data_load` savepoint.]_
 
 ### TestData.truncate
 
@@ -537,43 +565,44 @@ yet. Here are some existing assumptions and limitations:
 * Your app does not rely on Rails' [multi-database
   support](https://guides.rubyonrails.org/active_record_multiple_databases.html)
 
-* The gem only supports one test data environment and dump per application
-
 * Your app has Rails-generated `bin/rake` and `bin/rails` binstubs and that they
   are in working order
 
-* The `database.yml` generator assumes you have a working `&default` alias from
-  which to extend the `test_data` database configuration
+* Your `database.yml` defines a `&default` alias from which to extend the
+  `test_data` database configuration (if it lacks one, you'll need specify the
+  database's configuration on your own)
 
 ## Fears, Uncertainties, and Doubts
 
-
-### But we use and like `factory_bot` and so I am inclined to dislike everything about this
+### But we use and like `factory_bot` and so I am inclined to dislike everything about this gem!
 
 If you use `factory_bot` and all of these are true:
 
 * Your integration tests are super fast and not getting significantly slower
   over time
 
-* A single change to a factory rarely results in test failures that (rather than
-  indicating a bug in the production code) instead require that each of those
-  tests be updated to get back to a passing state
+* Innocuous changes to factories rarely result in unrelated test failures that
+  (rather than indicating a bug in the production code) instead require that
+  each of those tests be updated to get back to a passing state
 
 * The number of associated records generated between your most-used, default
   factories are representative of production data, as opposed to just generating
-  "one of everything" (i.e. you don't have multiple `User` factories with names
-  like `:user` and `:basic_user` and `:lite_user` and
-  `:plain_user_no_associations_allowed`)
+  a sprawling hierarchy of models that orders "one of everything" from the menu.
 
-* Your most-invoked factories generate realistic attributes, as opposed to
-  representing the sum-of-all-edge-cases with every boolean flag enabled and
-  optional field filled
+* You've avoided mitigating the above problems with confusingly-named and
+  confidence-eroding nested factories with names like `:user` and `:basic_user`
+  and `:lite_user` and `:plain_user_no_associations_allowed`
+
+* Your most-invoked factories generate models that resemble real models created
+  by your production application, as opposed to representing the
+  sum-of-all-edge-cases with every boolean flag enabled and optional attribute
+  set
 
 If none of these things are true, then congratulations! You are using
-`factory_bot` the right way! (And if you've been using it extensively for more
-than two years and can honestly say that all of the above is true, please
-[contact Justin](mailto:justin@testdouble.com), because he would love to meet
-with you, as he's never seen a team accomplish this).
+`factory_bot` with great success! (But seriously, if you've been using factories
+extensively for more than two years and can honestly say that all of the above
+is true, please [contact Justin](mailto:justin@testdouble.com), because he would
+love to meet with you, as he's never seen a team accomplish this).
 
 However, if any of the above might be reasonably used to describe your test
 suite's use of `factory_bot`, these are the sorts of failure modes that
