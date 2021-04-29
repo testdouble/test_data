@@ -802,14 +802,91 @@ Beyond these options, we'd also be interested in a solution that filtered data
 in a more granular way than ignoring entire tables. If you have a proposal you'd
 be interested in implementing, [suggest it in an issue](/issues/new)!
 
-### But tests should stand on their own, not coupled to some invisible, shared state!
+### Tests shouldn't use shared test data, they should instantiate the objects they need!
 
-The idea of building your `test_data` interactively and then coupling your tests
-to random names and dates you entered into a form may feel
+Agreed!
 
+If it's possible to write a test that looks like this, do it. Don't use shared
+test data loaded from this gem or any other:
 
-missing out on one of the main benefits of the `test_data` gem:
+```ruby
+def test_exclude_cancelled_orders
+  good_order = Order.new
+  bad_order = Order.new(cancelled: true)
+  user = User.create!(orders: good_order, bad_order)
 
+  result = user.active_orders
+
+  assert_includes good_order
+  assert_includes bad_order
+end
+```
+
+This test is simple, self-contained, and can only fail if the functionality
+stops working. Maximizing the number of tests that can be written expressively
+and succinctly without the aid of an external helper is a laudable goal that
+more teams should embrace.
+
+However, what if the code you're writing doesn't need three records in the
+database, but 30? Writing that much test setup would be painstaking and—despite
+being fully-encapsulated—make it hard for readers to keep track of the plot. At
+that point, you have two options:
+
+1. Critically validate your design: why is it so hard to set up? Does it
+   _really_ require so much persisted data to exercise this behavior? Would a
+   plain old Ruby object that defined a pure function have been feasible? Could
+   a model instance or even a `Struct` been passed to the
+   [subject](https://github.com/testdouble/contributing-tests/wiki/Subject)
+   instead of loaded everything from the database? When automated testing is
+   saved for the very end of a feature's development, it can feel too-costly to
+   reexamine design decisions, but it's valuable feedback all the same—*easy to
+   test code is easy to use code*.
+
+2. If the complex setup is a necessary reality of the situation that your app
+   needs to handle, then having _some_ kind of shared source of test data to use
+   as a starting point can be hugely beneficial. That's why `factory_bot` is so
+   popular, why this gem exists, etc.
+
+As a result, there is no one-size-fits-all approach. Straightforward behavior
+that can be invoked with clear, concise tests have no reason to be coupled to a
+shared source of test data. Complex behavior that can only be exercised in the
+presence of a complex set of data would grow unwieldy without something to help
+populate that data. So both modes clearly have their place in any application's
+test suites.
+
+But this is a pretty nuanced discussion that can be hard to keep in mind when
+under deadline pressure or on a large team where building consensus around norms
+is challenging. As a result, you might consider separating these two categories
+into separate test types or suites.
+
+For example, it would be completely reasonable to load this gem's test data for
+integration tests, but not for basic tests of models, like so:
+
+```ruby
+class ActionDispatch::IntegrationTest
+  def setup
+    TestData.load
+  end
+
+  def teardown
+    TestData.rollback
+  end
+end
+
+class ActiveSupport::TestCase
+  def setup
+    TestData.truncate
+  end
+
+  def teardown
+    TestData.rollback(:after_data_truncate)
+  end
+end
+```
+
+In short, this skepticism is generally healthy, and encapsulated tests that
+forego reliance on shared sources of test data should be maximized. For
+everything else, there's `test_data`.
 
 ## Code of Conduct
 
