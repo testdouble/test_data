@@ -1,4 +1,5 @@
 require "rails/generators"
+require_relative "../../test_data/generator_support"
 
 module TestData
   class EnvironmentFileGenerator < Rails::Generators::Base

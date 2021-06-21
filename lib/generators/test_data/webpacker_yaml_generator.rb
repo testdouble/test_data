@@ -1,9 +1,9 @@
 require "rails/generators"
+require_relative "../../test_data/generator_support"
 
 module TestData
   class WebpackerYamlGenerator < Rails::Generators::Base
     AFTER_DEVELOPMENT_WEBPACK_STANZA_REGEX = /^development:/
-    BEFORE_TEST_WEBPACK_STANZA_REGEX = /^$\n(?:^\#.*\n)*^test:/
 
     def call
       if Configurators::WebpackerYaml.new.verify.looks_good?
@@ -12,7 +12,7 @@ module TestData
         inject_into_file "config/webpacker.yml", after: AFTER_DEVELOPMENT_WEBPACK_STANZA_REGEX do
           " &development"
         end
-        inject_into_file "config/webpacker.yml", before: BEFORE_TEST_WEBPACK_STANZA_REGEX do
+        inject_into_file "config/webpacker.yml", before: BEFORE_TEST_STANZA_REGEX do
           <<~YAML
 
             # Used in conjunction with the test_data gem
