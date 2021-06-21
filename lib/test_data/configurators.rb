@@ -4,6 +4,7 @@ module TestData
       [
         EnvironmentFile,
         Initializer,
+        CableYaml,
         DatabaseYaml,
         SecretsYaml,
         WebpackerYaml

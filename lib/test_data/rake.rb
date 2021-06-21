@@ -25,7 +25,7 @@ task "test_data:verify_config" do
   TestData.log.with_plain_writer do
     config = TestData::VerifiesConfiguration.new.call
     unless config.looks_good?
-      TestData.log.warn "The test_data gem is not configured correctly. Try 'rake test_data:configure'?\n"
+      TestData.log.warn "\nThe test_data gem is not configured correctly. Try running: rake test_data:configure\n\n"
       config.problems.each do |problem|
         TestData.log.warn "  - #{problem}"
       end
