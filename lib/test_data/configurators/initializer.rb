@@ -7,12 +7,13 @@ module TestData
       end
 
       def verify
-        pathname = Pathname.new("#{@config.pwd}/config/initializers/test_data.rb")
+        path = "config/initializers/test_data.rb"
+        pathname = Pathname.new("#{@config.pwd}/#{path}")
         if pathname.readable?
           ConfigurationVerification.new(looks_good?: true)
         else
           ConfigurationVerification.new(problems: [
-            "'#{pathname}' is not readable"
+            "'#{path}' is not readable"
           ])
         end
       end

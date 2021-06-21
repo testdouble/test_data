@@ -18,6 +18,7 @@ module TestData
             # Used in conjunction with the test_data gem
             test_data:
               <<: *development
+
           YAML
         end
       end

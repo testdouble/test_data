@@ -22,13 +22,15 @@ end
 
 desc "Verifies test_data environment looks good"
 task "test_data:verify_config" do
-  config = TestData::VerifiesConfiguration.new.call
-  unless config.looks_good?
-    TestData.log.warn "The test_data gem is not configured correctly. Try 'rake test_data:configure'?\n"
-    config.problems.each do |problem|
-      TestData.log.warn "  - #{problem}"
+  TestData.log.with_plain_writer do
+    config = TestData::VerifiesConfiguration.new.call
+    unless config.looks_good?
+      TestData.log.warn "The test_data gem is not configured correctly. Try 'rake test_data:configure'?\n"
+      config.problems.each do |problem|
+        TestData.log.warn "  - #{problem}"
+      end
+      fail
     end
-    fail
   end
 end
 

@@ -41,7 +41,7 @@ module TestData
       TestData.log.level = level
     end
 
-    attr_reader :pwd, :database_yaml_path
+    attr_reader :pwd, :database_yaml_path, :secrets_yaml_path
 
     def self.full_path_reader(*relative_path_readers)
       relative_path_readers.each do |relative_path_reader|
@@ -51,7 +51,7 @@ module TestData
       end
     end
 
-    full_path_reader :schema_dump_path, :data_dump_path, :non_test_data_dump_path, :database_yaml_path
+    full_path_reader :schema_dump_path, :data_dump_path, :non_test_data_dump_path, :database_yaml_path, :secrets_yaml_path
 
     def initialize(pwd:)
       @pwd = pwd
@@ -59,6 +59,7 @@ module TestData
       @data_dump_path = "test/support/test_data/data.sql"
       @non_test_data_dump_path = "test/support/test_data/non_test_data.sql"
       @database_yaml_path = "config/database.yml"
+      @secrets_yaml_path = "config/secrets.yml"
       @non_test_data_tables = []
       @dont_dump_these_tables = []
       @truncate_these_test_data_tables = nil

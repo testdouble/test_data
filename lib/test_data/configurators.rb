@@ -5,6 +5,7 @@ module TestData
         EnvironmentFile,
         Initializer,
         DatabaseYaml,
+        SecretsYaml,
         WebpackerYaml
       ].map(&:new)
     end

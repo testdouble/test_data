@@ -6,11 +6,18 @@ module TestData
   class Log
     LEVELS = [:debug, :info, :warn, :error, :quiet]
     DEFAULT_WRITER = ->(message, level) do
-      output = "[test_data: #{level}] #{message}"
+      output = "[test_data:#{level}] #{message}"
       if [:warn, :error].include?(level)
         warn output
       else
         puts output
+      end
+    end
+    PLAIN_WRITER = ->(message, level) do
+      if [:warn, :error].include?(level)
+        warn message
+      else
+        puts message
       end
     end
 
@@ -47,6 +54,17 @@ module TestData
       else
         raise Error.new("Log writer must be callable")
       end
+    end
+
+    def with_writer(writer, &blk)
+      og_writer = self.writer
+      self.writer = writer
+      blk.call
+      self.writer = og_writer
+    end
+
+    def with_plain_writer(&blk)
+      with_writer(PLAIN_WRITER, &blk)
     end
 
     private
