@@ -88,3 +88,5 @@ bin/rails test test/integration/boops_that_boop_boops_test.rb
 # Cleanup
 cd ..
 ./script/reset_example_app
+
+echo "You win!"
