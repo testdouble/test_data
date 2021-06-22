@@ -119,7 +119,7 @@ $ RAILS_ENV=test_data bin/rails server
 ```
 
 (If you're using [webpacker](https://github.com/rails/webpacker), you may also
-need to start its development server as well with (`RAILS_ENV=test_data
+need to start its development server as well with `RAILS_ENV=test_data
 bin/webpack-dev-server`)
 
 Because `test_data` creates a full-fledged Rails environment, you can run any
