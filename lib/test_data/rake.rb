@@ -50,6 +50,14 @@ task "test_data:initialize" => ["test_data:verify_config", :environment] do
     ActiveRecord::Tasks::DatabaseTasks.load_schema_current(ActiveRecord::Base.schema_format, ENV["SCHEMA"], "test_data")
     ActiveRecord::Tasks::DatabaseTasks.load_seed
   end
+
+  TestData.log.info <<~MSG
+    Your test_data environment and database are ready for use! You can now run
+    your server (or any command) to create some test data like so:
+
+      $ RAILS_ENV=test_data bin/rails server
+
+  MSG
 end
 
 desc "Initialize test_data Rails environment & configure database"
