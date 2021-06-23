@@ -8,11 +8,11 @@ class SerializedNonTransactionalTestCase < ActiveSupport::TestCase
   parallelize(workers: 1)
   self.use_transactional_tests = false
 
-  def setup
+  setup do
     TestData.load
   end
 
-  def teardown
+  teardown do
     TestData.rollback
   end
 end

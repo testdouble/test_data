@@ -4,11 +4,11 @@ class ParallelizedNonTransactionalFixturelessTestCase < ActiveSupport::TestCase
   parallelize(workers: :number_of_processors)
   self.use_transactional_tests = false
 
-  def setup
+  setup do
     TestData.load
   end
 
-  def teardown
+  teardown do
     TestData.rollback
   end
 end

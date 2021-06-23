@@ -5,11 +5,11 @@ class ParallelizedTransactionalFixturefullTestCase < ActiveSupport::TestCase
   self.use_transactional_tests = true
   fixtures :all
 
-  def setup
+  setup do
     TestData.load
   end
 
-  def teardown
+  teardown do
     TestData.rollback
   end
 end

@@ -1,14 +1,16 @@
 require "test_helper"
 
+TestData.config.use_transactional_data_loader = false
+
 class TransactionCommittingTestCase < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
-  def setup
+  setup do
     Noncommittal.stop!
-    TestData.load(transactions: false)
+    TestData.load
   end
 
-  def teardown
+  teardown do
     Boop.delete_all
     Noncommittal.start!
   end
