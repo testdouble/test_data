@@ -46,6 +46,12 @@ bin/rails test test/integration/migrated_boops_test.rb
 # Run a test that commits test data thru to the database
 bin/rails test test/integration/transaction_committing_boops_test.rb
 
+# Run a test that prevents Rails fixtures for preloading and then loads them in a transaction
+bin/rails test test/integration/rails_fixtures_override_test.rb
+
+# Run a test that forgets to prevent Rails fixtures but then tries to load them in a transaction
+bin/rails test test/integration/rails_fixtures_double_load_test.rb
+
 # Add a second migration, this time without wiping the test_data db and with a table we want to ignore
 cp ../test/fixtures/20210423114916_add_table_we_want_to_ignore.rb db/migrate
 cp ../test/fixtures/chatty_audit_log.rb app/models
