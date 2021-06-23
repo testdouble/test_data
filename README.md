@@ -453,6 +453,12 @@ TestData.config do |config|
   #   `data_dump_path` will be truncated
   # config.truncate_these_test_data_tables = nil
 
+  # Perform TestData.load and TestData.truncate inside nested
+  #   transactions for increased test isolation and speed. Setting this
+  #   to false will disable several features that depend on transactions
+  #   being used
+  # config.use_transactional_data_loader = true
+
   # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
   # Can also be set with env var TEST_DATA_LOG_LEVEL
   # config.log_level = :info
@@ -505,15 +511,15 @@ strategy, both because it's faster and because it reduces the risk of test
 pollution. However, you may need to commit your test data if the data needs to
 be loaded by multiple processes or over multiple connections.
 
-If you need to load the test data and commit it to the database, simply call
-`TestData.load(transactions: false)`.
+If you need to load the test data and commit it to the database, simply set
+`TestData.config.use_transactional_data_loader = false`.
 
 Once committed, figuring out when and how to clear it out after each test run
 then becomes an additional responsibility. Many folks use
 [database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) for
 this, while this gem offers a rudimentary
 [TestData.truncate](https://github.com/testdouble/test_data#testdatatruncate)
-method that can be passed `transactions: false` and which may be sufficient.
+method which may be sufficient for your application.
 
 You might imagine something like this if you were loading the data just once for
 the full run of a test suite:
@@ -521,18 +527,19 @@ the full run of a test suite:
 ```ruby
 RSpec.configure do |config|
   config.before :all do
-    TestData.load(transactions: false)
+    TestData.load
   end
 
   config.after :all do
-    TestData.truncate(transactions: false)
+    TestData.truncate
   end
 end
 ```
 
-Note that subsequent `TestData.load(transactions: false)` calls won't be able to
-detect whether the data is already loaded and will try to re-insert the data,
-which will almost certainly result in primary key conflicts.
+Note that when `use_transactional_data_loader` is `false`, subsequent
+`TestData.load` calls won't be able to detect whether the data is already loaded
+and will try to re-insert the data, which will almost certainly result in
+primary key conflicts.
 
 ### TestData.rollback
 
@@ -636,7 +643,8 @@ in:
 #### If you're not using transactions
 
 Just [like TestData.load](#loading-without-transactions), you can call
-`TestData.truncate(transactions: false)` and it'll commit the truncation.
+`TestData.truncate` when `use_transactional_data_loader` is `false` and it will
+commit the truncation.
 
 ## Assumptions
 

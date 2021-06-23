@@ -29,6 +29,12 @@ module TestData
           #   `data_dump_path` will be truncated
           # config.truncate_these_test_data_tables = nil
 
+          # Perform TestData.load and TestData.truncate inside nested
+          #   transactions for increased test isolation and speed. Setting this
+          #   to false will disable several features that depend on transactions
+          #   being used
+          # config.use_transactional_data_loader = true
+
           # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
           #   Can also be set with env var TEST_DATA_LOG_LEVEL
           # config.log_level = :info

@@ -1,37 +1,109 @@
 module TestData
-  def self.load(transactions: true)
-    @transactional_data_loader ||= TransactionalDataLoader.new
-    @transactional_data_loader.load(transactions: transactions)
+  def self.load
+    @data_loader ||= TestData.config.use_transactional_data_loader ? TransactionalDataLoader.new : CommittingDataLoader.new
+    @data_loader.load
+  end
+
+  def self.ensure_we_dont_mix_transactional_and_non_transactional_data_loaders!(use_transactions)
+    unless @data_loader.nil? || use_transactions == @data_loader.transactional?
+      raise Error.new("There is already a #{@data_loader.transactional? ? "transactional" : "non-transactional"} data loader in use, and test_data does not support mixing both types of loaders in a single process.")
+    end
   end
 
   def self.rollback(save_point_name = :after_data_load)
-    @transactional_data_loader ||= TransactionalDataLoader.new
+    unless TestData.config.use_transactional_data_loader
+      raise Error.new("TestData.rollback requires config.use_transactional_data_loader = true")
+    end
+    @data_loader ||= TransactionalDataLoader.new
     case save_point_name
     when :before_data_load
-      @transactional_data_loader.rollback_to_before_data_load
+      @data_loader.rollback_to_before_data_load
     when :after_data_load
-      @transactional_data_loader.rollback_to_after_data_load
+      @data_loader.rollback_to_after_data_load
     when :after_data_truncate
-      @transactional_data_loader.rollback_to_after_data_truncate
+      @data_loader.rollback_to_after_data_truncate
     else
       raise Error.new("No known save point named '#{save_point_name}'. Valid values are: [:before_data_load, :after_data_load, :after_data_truncate]")
     end
   end
 
-  def self.truncate(transactions: true)
-    @transactional_data_loader ||= TransactionalDataLoader.new
-    @transactional_data_loader.truncate(transactions: transactions)
+  def self.truncate
+    @data_loader ||= TestData.config.use_transactional_data_loader ? TransactionalDataLoader.new : CommittingDataLoader.new
+    @data_loader.truncate
   end
 
-  class TransactionalDataLoader
+  class AbstractDataLoader
     def initialize
       @config = TestData.config
       @statistics = TestData.statistics
+    end
+
+    protected
+
+    def execute_data_load
+      search_path = execute("show search_path").first["search_path"]
+      connection.disable_referential_integrity do
+        execute(File.read(@config.data_dump_full_path))
+      end
+      execute <<~SQL
+        select pg_catalog.set_config('search_path', '#{search_path}', false)
+      SQL
+      @statistics.count_load!
+    end
+
+    def execute_data_truncate
+      connection.disable_referential_integrity do
+        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} CASCADE")
+      end
+      @statistics.count_truncate!
+    end
+
+    def tables_to_truncate
+      if @config.truncate_these_test_data_tables.present?
+        @config.truncate_these_test_data_tables
+      else
+        @tables_to_truncate ||= IO.foreach(@config.data_dump_path).grep(/^INSERT INTO/) { |line|
+          line.match(/^INSERT INTO ([^\s]+)/)&.captures&.first
+        }.compact.uniq
+      end
+    end
+
+    def connection
+      ActiveRecord::Base.connection
+    end
+
+    private
+
+    def execute(sql)
+      connection.execute(sql)
+    end
+  end
+
+  class CommittingDataLoader < AbstractDataLoader
+    def transactional?
+      false
+    end
+
+    def load
+      execute_data_load
+    end
+
+    def truncate
+      execute_data_truncate
+    end
+  end
+
+  class TransactionalDataLoader < AbstractDataLoader
+    def initialize
+      super
       @save_points = []
     end
 
-    def load(transactions: true)
-      return execute_data_load unless transactions
+    def transactional?
+      true
+    end
+
+    def load
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       return rollback_to_after_data_load if save_point_active?(:after_data_load)
 
@@ -62,8 +134,7 @@ module TestData
       end
     end
 
-    def truncate(transactions: true)
-      return execute_data_truncate unless transactions
+    def truncate
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       ensure_after_truncate_save_point_is_active_if_data_is_truncated!
       return rollback_to_after_data_truncate if save_point_active?(:after_data_truncate)
@@ -82,7 +153,7 @@ module TestData
         # implies that it's safe to rollback to the :after_data_load save
         # point; since tests run in random order, it's likely to happen
         TestData.log.debug("TestData.truncate was called, but data was not loaded. Loading data before truncate to preserve the documents transaction save point ordering")
-        load(transactions: true)
+        load
       end
 
       execute_data_truncate
@@ -130,34 +201,6 @@ module TestData
       ActiveRecord::InternalMetadata.find_by(key: "test_data:truncated")&.value == "true"
     end
 
-    def execute_data_load
-      search_path = execute("show search_path").first["search_path"]
-      connection.disable_referential_integrity do
-        execute(File.read(@config.data_dump_full_path))
-      end
-      execute <<~SQL
-        select pg_catalog.set_config('search_path', '#{search_path}', false)
-      SQL
-      @statistics.count_load!
-    end
-
-    def execute_data_truncate
-      connection.disable_referential_integrity do
-        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")}")
-      end
-      @statistics.count_truncate!
-    end
-
-    def tables_to_truncate
-      if @config.truncate_these_test_data_tables.present?
-        @config.truncate_these_test_data_tables
-      else
-        @tables_to_truncate ||= IO.foreach(@config.data_dump_path).grep(/^INSERT INTO/) { |line|
-          line.match(/^INSERT INTO ([^\s]+)/)&.captures&.first
-        }.compact.uniq
-      end
-    end
-
     def save_point_active?(name)
       purge_closed_save_points!
       !!@save_points.find { |sp| sp.name == name }&.active?
@@ -177,14 +220,6 @@ module TestData
       @save_points = @save_points.select { |save_point|
         save_point.active?
       }
-    end
-
-    def execute(sql)
-      connection.execute(sql)
-    end
-
-    def connection
-      ActiveRecord::Base.connection
     end
   end
 end
