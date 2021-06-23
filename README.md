@@ -267,7 +267,7 @@ end
 
 For more thoughts on migrating to `test_data` when you have existing tests,
 [some ideas are discussed
-here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over).
+here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-this-gem-without-throwing-them-away-and-starting-over).
 
 ### Step 5: Keeping your test data up-to-date
 
