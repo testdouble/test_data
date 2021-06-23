@@ -42,4 +42,8 @@ class SomeTestDataUsingTest < ActionDispatch::IntegrationTest
   def test_boops
     assert_equal 10, Boop.count
   end
+
+  def test_factory_bot_method_is_not_on_this_class
+    assert_raises(NameError) { method(:create) }
+  end
 end
