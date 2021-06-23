@@ -47,7 +47,7 @@ module TestData
         TestData.log.info "Dumped '#{database_name}' #{name} to '#{relative_path}'"
         log_size_info_and_warnings(before_size: before_size, after_size: File.size(dump_pathname))
       else
-        raise "Failed while attempting to  dump '#{database_name}' #{name} to '#{relative_path}'"
+        raise Error.new("Failed while attempting to  dump '#{database_name}' #{name} to '#{relative_path}'")
       end
     end
 

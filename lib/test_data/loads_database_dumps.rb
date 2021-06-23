@@ -38,7 +38,7 @@ module TestData
       if system "psql -q -d #{database_name} < #{dump_pathname}"
         TestData.log.info "Loaded #{name} from '#{relative_path}' into database '#{database_name}' "
       else
-        raise "Failed while attempting to load #{name} from '#{relative_path}' into database '#{database_name}'"
+        raise Error.new("Failed while attempting to load #{name} from '#{relative_path}' into database '#{database_name}'")
       end
     end
   end
