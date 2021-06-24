@@ -77,6 +77,7 @@ module TestData
       test_instance.use_transactional_tests = false
       test_instance.__test_data_gem_setup_fixtures
       @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
+      @statistics.count_load_rails_fixtures!
     end
 
     def tables_to_truncate
@@ -271,7 +272,6 @@ module TestData
 
     def reset_rails_fixture_caches(test_instance)
       ActiveRecord::FixtureSet.reset_cache
-
       test_instance.instance_variable_set(:@loaded_fixtures, @already_loaded_rails_fixtures[test_instance.class])
       test_instance.instance_variable_set(:@fixture_cache, {})
     end

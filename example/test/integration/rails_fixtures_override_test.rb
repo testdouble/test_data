@@ -2,11 +2,9 @@ require "test_helper"
 
 TestData.prevent_rails_fixtures_from_loading_automatically!
 
-class ActiveSupport::TestCase
-  fixtures :all
-end
-
 class FixtureFreeTestData < ActiveSupport::TestCase
+  fixtures :boops # why not
+
   setup do
     TestData.load
   end
@@ -21,12 +19,18 @@ class FixtureFreeTestData < ActiveSupport::TestCase
 end
 
 class FixturesUsingTest < ActiveSupport::TestCase
+  fixtures :boops
+
   setup do
     TestData.load_rails_fixtures(self)
   end
 
   def test_has_fixture_boops
     assert_equal 2, Boop.count
+  end
+
+  def test_does_not_get_the_other_fixture_accessor
+    assert_raises(NameError) { method(:pants) }
   end
 
   def test_even_explicitly_loading_test_data_will_truncate_and_then_load_fixtures
@@ -56,17 +60,60 @@ class FixturesUsingTest < ActiveSupport::TestCase
   end
 end
 
-class AnotherFixturesUsingTest < ActiveSupport::TestCase
+class SomeFixturesAndSomeTestDataInOneClassTest < ActiveSupport::TestCase
+  i_suck_and_my_tests_are_order_dependent!
+  fixtures :all
+
+  def test_fixtures_work
+    TestData.load_rails_fixtures(self)
+
+    assert_equal Date.civil(2020, 1, 1), boops(:boop_1).updated_at.to_date
+    assert_equal "Levi", pants(:pant_1).brand
+
+    TestData.rollback(:after_load_rails_fixtures)
+  end
+
+  def test_that_rewinds_to_test_data
+    TestData.load
+
+    assert_equal 15, Boop.count
+
+    TestData.rollback
+  end
+
+  def test_that_rewinds_to_the_very_start
+    TestData.rollback(:before_data_load)
+
+    assert_equal 0, Boop.count
+  end
+
+  def test_fixtures_get_reloaded_because_cache_is_cleared
+    TestData.load_rails_fixtures(self)
+
+    assert_equal Date.civil(2019, 1, 1), boops(:boop_2).updated_at.to_date
+    assert_equal "Wrangler", pants(:pant_2).brand
+
+    TestData.rollback(:after_load_rails_fixtures)
+  end
+end
+
+class PantsFixturesTest < ActiveSupport::TestCase
+  fixtures :pants
+
   setup do
     TestData.load_rails_fixtures(self)
   end
 
-  def test_boops_api_works
-    assert_equal Date.civil(2020, 1, 1), boops(:boop_1).updated_at.to_date
-  end
-
   teardown do
     TestData.rollback(:after_load_rails_fixtures)
+  end
+
+  def test_has_fixture_pants
+    assert_equal 2, Pant.count
+  end
+
+  def test_does_not_get_the_other_fixture_accessor
+    assert_raises(NameError) { method(:boops) }
   end
 end
 

@@ -35,6 +35,9 @@ bin/rails test test/integration/updated_boops_test.rb
 
 # Test a migration being added and run and an out-of-date dump being loaded
 cp ../test/fixtures/20210418220133_add_beep_to_boops.rb db/migrate
+cp ../test/fixtures/20210624180810_create_pants.rb db/migrate
+cp ../test/fixtures/pant.rb app/models
+cp ../test/fixtures/pants.yml test/fixtures
 bin/rake db:migrate
 bin/rake db:test:prepare
 bin/rake test_data:drop_database
