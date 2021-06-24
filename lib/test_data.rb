@@ -1,3 +1,4 @@
+require_relative "test_data/active_record_ext"
 require_relative "test_data/active_support_ext"
 require_relative "test_data/config"
 require_relative "test_data/configuration_verification"
