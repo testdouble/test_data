@@ -34,6 +34,28 @@ be open to the idea that [there might be a better way](
 _[Full disclosure: because the gem is still brand new, it makes a number of
 [assumptions](#assumptions) and may not work for every project just yet.]_
 
+## Documentation
+
+This gem requires a lot of documentation—not because `test_data` does a lot of
+things, but because managing one's test data is an inherently complex task. If
+one reason Rails apps chronically suffer from slow tests is that other
+approaches oversimplify test data management, it stands to reason that any
+discomfort caused by `test_data`'s scope may not indicate _unnecessary
+complexity_ so much how much acclimatization may be necessary to arrive at the
+diligence necessary to achieve fast, isolated tests that scale with your
+application.
+
+1. [Getting Started Guide](#getting-started-guide)
+2. [Factory & Fixture Interoperability
+   Guide](#factory--fixture-interoperability-guide)
+3. [Rake Task Reference](#rake-task-reference)
+4. [API Reference](#api-reference)
+5. [Assumptions](#assumptions)
+6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts)
+7. [Code of Conduct](#code-of-conduct)
+8. [Changelog](/CHANGELOG.md)
+9. [MIT License](/LICENSE.txt)
+
 ## Getting started guide
 
 This guide will walk you through setting up `test_data` in your application. You
@@ -267,7 +289,7 @@ end
 
 For more thoughts on migrating to `test_data` when you have existing tests,
 [some ideas are discussed
-here](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-this-gem-without-throwing-them-away-and-starting-over).
+here](#factory--fixture-interoperability-guide).
 
 ### Step 5: Keeping your test data up-to-date
 
@@ -312,6 +334,294 @@ as schemas, instead preferring one-off scripts and tasks. You'll have an easier
 time of things if you use migrations for both schema and data changes. Here are
 some notes on [how to write data migrations
 safely](https://blog.testdouble.com/posts/2014-11-04-healthy-migration-habits/#habit-4-dont-reference-models).]_
+
+## Factory & Fixture Interoperability Guide
+
+Let's be real, most Rails apps already have some tests, and most of those test
+suites will already be relying on
+[factory_bot](https://github.com/thoughtbot/factory_bot) or Rails' built-in
+[test
+fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures).
+While `test_data` is designed to be an alternative to both of these approaches
+to managing your test data, it wouldn't be practical to ask a team to rewrite
+their existing tests before migrating to a different tool. That's why the
+`test_data` gem goes to great lengths to play nicely with both of them, while
+still ensuring each test is wrapped in an isolated and fast always-rolled-back
+transaction.
+
+### Using `test_data` with `factory_bot`
+
+This section will document some thoughts and strategies for introducing
+`test_data` to a test suite that's already using `factory_bot`.
+
+#### Getting your factory tests passing after adding `test_data`
+
+Depending on the assumptions your tests make about the state of the database
+before you've loaded any factories, it's possible that everything will "just
+work" if you've added `TestData.load` in a before-each hook and
+`TestData.rollback` in an after-each hook (as shown in the [setup
+guide](#step-4-load-your-data-in-your-tests)). So by all means, try running your
+suite after following the initial setup guide and see if the suite just passes.
+
+The first thing to consider is how database cleanup is being handled by the test
+suite. It's possible that your suite is relying on Rails' built-in
+`use_transactional_tests` feature to wrap your tests in always-rolled-back
+transactions, even if you're not using fixtures. Or perhaps your suite uses
+[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
+truncate the database before or after each test. In either case, it's important
+to know that by default `TestData.load` and `TestData.rollback` will start and
+rollback a nested transaction, respectively. That means—so long as they're
+called at the top of your before-each hooks and the end of your after-each
+hooks—you might be able to disable `use_transactional_tests` or remove your
+dependency on `database_cleaner` or any custom truncation logic you might be
+depending on. Even if you get your suite running immediately after adding
+`test_data`, it's still worth taking the time to understand what's going on
+during test setup & teardown, because there may be an opportunity to make your
+tests faster and more comprehensible by eliminating redundant clean-up steps.
+
+If you find that your test suite is failing after adding `TestData.load` to your
+setup, don't panic! It probably means that you have test data and factory
+invocations that are violating unique validations or database constraints.
+Depending on your situation (e.g. the size of your test suite, implications of
+introducing changing old tests you might not understand) you might try to
+troubleshoot these errors case-by-case, usually by updating the offending
+factories or editing your `test_data` database to steer clear of one another.
+
+If your tests are failing after introducing `test_data` and it's not feasible to
+work through those failures for whatever reason, you can accomplish a clean
+segregation between your factory-dependent tests and your tests that rely on
+your `test_data` database by wrapping each test that depends on `factory_bot`
+with [TestData.truncate](#testdatatruncate) in a before-each hook and
+[TestData.rollback(:after_data_truncate)](#rolling-back-to-after-test-data-was-truncated)
+in an after-each hook. What this will do is complicated and counter-intuitive,
+but fast and reliable: `TestData.truncate` will first ensure that your
+`test_data` database is loaded inside a transaction, then will truncate that
+data (see the `truncate_these_test_data_tables` config option if it doesn't just
+work), and will finally create _yet another_ transaction save point named
+`:after_data_truncate`. From that point onward, your test is free to create all
+the factories it needs without fear of colliding with whatever you've got stored
+in your `test_data` tables.
+
+Hopefully one of these approaches, or some combination of them will get your
+test suite passing after you've introduced `test_data` to it.
+
+#### Separating your `test_data` and factory tests
+
+Just because your tests _can_ access both your `factory_bot` factories and
+`test_data` database doesn't mean they _should_.
+
+Integration tests inevitably become coupled to the data that's available to
+them, and if a test has access to fixtures, records created by a factory, and a
+`test_data` SQL dump, it is likely to unintentionally become dependent on all
+three. This could result in the test having more ways to fail than necessary and
+make it harder to simplify your test data strategy later. Instead, consider
+explicitly opting into a single type of test data by creating different types of
+tests or separate suites to segregate them.
+
+Every situation will be different, but one strategy that suits a lot of
+circumstances would be to write a method to declare and configure the test data
+strategy for the current test.
+
+Taking from [this
+example](/example/test/integration/better_mode_switching_demo_test.rb) test, you
+could implement a class method like this:
+
+```ruby
+class ActiveSupport::TestCase
+  def self.test_data_mode(mode)
+    case mode
+    when :factory_bot
+      require "factory_bot_rails"
+      include FactoryBot::Syntax::Methods
+
+      setup do
+        TestData.truncate
+      end
+
+      teardown do
+        TestData.rollback(:after_data_truncate)
+      end
+    when :test_data
+      setup do
+        TestData.load
+      end
+
+      teardown do
+        TestData.rollback
+      end
+    end
+  end
+end
+```
+
+And then (without any class inheritance complications), simply declare which
+kind of test you're specifying:
+
+```ruby
+class SomeFactoryUsingTest < ActiveSupport::TestCase
+  test_data_mode :factory_bot
+
+  # … tests go here
+end
+
+class SomeTestDataUsingTest < ActionDispatch::IntegrationTest
+  test_data_mode :test_data
+
+  # etc.
+end
+```
+
+By following an approach like this one, your `test_data` tests won't even see
+your `create_*` factory methods and your `factory_bot` tests won't have access
+to any of your `test_data`, either. From there, you can  migrate tests onto
+`test_data` incrementally, secure in the knowledge that you're not inadvertently
+tangling your tests' dependency graph further.
+
+#### Improving test suite speed with factories
+
+It's important to know that if your test suite has a mix of tests that call
+`TestData.load` and tests that call `TestData.truncate`, each time the test
+runner switches between the two types, each call to `TestData.load` will cause
+the transaction state to be rolled back from
+[:after_data_truncate](#rolling-back-to-after-test-data-was-truncated) to
+[:after_data_load](#rolling-back-to-after-the-data-was-loaded), only for the
+next call to `TestData.truncate` to truncate all the tables again. In practice,
+this shouldn't be too costly an operation, but you might find that your tests
+will run faster if you separate them at runtime.
+
+Separating your `test_data` and `factory_bot` tests is pretty trivial if you're
+using RSpec, you might accomplish this with the
+[tag](https://relishapp.com/rspec/rspec-core/v/3-10/docs/command-line/tag-option)
+feature. Otherwise, you might consider organizing the tests in different
+directories and running multiple commands to execute all your tests (e.g.
+`bin/rails test test/test_data_tests` and `bin/rails test/factory_tests`). Every
+CI configuration is different, however, and you may find yourself needing some
+customization to how your tests are run in CI to achieve the fastest build time.
+
+### Using `test_data` with Rails fixtures
+
+While fixtures are similar to factories, the fact that they're run globally by
+Rails and, by default, committed through to the test database, actually make
+them a little trickier to work around. This section will cover a couple
+approaches for integrating `test_data` into suite that's dependent on Rails'
+[test
+fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
+
+#### Getting your fixtures-dependent tests passing with `test_data`
+
+It's more likely than not that all your tests will explode in dramatic fashion
+as soon as you add `TestData.load` to a `setup` or `before(:each)` hook, because
+fixtures are loaded all-at-once, then your `test_data` dump is inserted directly
+on top of them. If everything works, or if you only encounter a few errors
+throughout your test suite (perhaps based on assertions of the `count` of a
+particular model), congratulations! You should still consider mitigating the
+risks of coupling your tests to both data sources ([as discussed
+above](#separating-your-test_data-and-factory-tests)) by migrating completely
+onto `test_data` over time, but no further action is necessary or recommended.
+
+If, however, you find yourself running into non-trivial challenges (like
+non-trivial validation or constraint errors), `test_data` provides an API that
+**overrides Rails built-in fixtures behavior with a monkey patch**. If that bold
+text warning wasn't enough to scare you from reading on, here's how to do it.
+(Note also that all of this requires the default `use_transactional_data_loader`
+is `true`, because it depends on transaction rollbacks.)
+
+Here's what you can do if you can't get your fixtures to play nicely with your
+`test_data` dump:
+
+1. Near the top of your test helper, call:
+   `TestData.prevent_rails_fixtures_from_loading_automatically!` This will
+   effectively turn
+   [setup_fixtures](https://github.com/rails/rails/blob/main/activerecord/lib/active_record/test_fixtures.rb#L105)
+   into a no-op, which means that your test fixtures will not be automatically
+   loaded into your test database
+
+
+2. In tests that rely on your `test_data` dump, call [TestData.load and
+   TestData.rollback](#step-4-load-your-data-in-your-tests) as you normally
+   would. Because your fixtures won't be loaded automatically, they won't be
+   available to these tests
+
+3. In tests that need fixtures, call `TestData.load_rails_fixtures` in a
+   before-each hook and `TestData.rollback(:after_load_rails_fixtures)` in an
+   after-each hook. This will (in an almost comic level of transaction-nesting)
+   ensure your `test_data` dump is loaded in a first transaction, ensure that it
+   is truncated in a second transaction, and then load your rails fixtures into
+   a third transaction. These tests will have access to all your fixture data
+   without being tainted by any of your `test_data` data
+
+For example, you might add the following to an existing fixtures-dependent
+test to get it passing:
+
+```ruby
+class AnExistingFixtureUsingTest < ActiveSupport::Testcase
+  def setup
+    TestData.load_rails_fixtures
+    # pre-existing setup
+  end
+
+  def test_stuff
+    #… etc
+  end
+
+  def teardown
+    TestData.rollback(:after_load_rails_fixtures)
+  end
+end
+
+#### Separating your `test_data` and fixture tests
+
+*This only applies if you had to use `TestData.load_rails_fixtures` as shown
+above.*
+
+Just [like with factories](#separating-your-test_data-and-factory-tests), you
+might benefit from a test helper to clearly declare whether a test uses fixtures
+or `test_data` right at the top. Following the same pattern, you might do this:
+
+```ruby
+class ActiveSupport::TestCase
+  def self.test_data_mode(mode)
+    case mode
+    when :fixtures
+      fixtures :all
+
+      setup do
+        TestData.load_rails_fixtures
+      end
+
+      teardown do
+        TestData.rollback(:after_load_rails_fixtures)
+      end
+    when :test_data
+      setup do
+        TestData.load
+      end
+
+      teardown do
+        TestData.rollback
+      end
+    end
+  end
+end
+```
+
+#### Improving test suite speed with fixtures
+
+Again, as is [the case with
+factories](#improving-test-suite-speed-with-factories), every time your test
+runner randomly picks a `test_data` test after running a fixtures-dependent
+test, it will roll back the fixtures loaded into the database and the
+`test_data` truncation, only to re-truncate and reload those fixtures for the
+next test that uses fixtures. But unlike truncation alone, loading your fixtures
+is a non-trivial operation that can chew up a some serious time as your suite
+runs.
+
+As a result, we strongly encourage breaking up your test suite in two, run as
+multiple CLI commands if necessary. If you're using the Rails test runner and
+minitest, that likely means sequestering one set of tests to one directory and
+the other to a different directory, as there is no granular control over to how
+the runner randomizes suites. And for RSpec, tagging each spec and running
+separate commands for each tag could yield significant performance improvements.
 
 ## Rake Task Reference
 
@@ -655,15 +965,16 @@ yet. Here are some existing assumptions and limitations:
 
 * You're using Rails 6 or higher
 
-* Your app does not rely on Rails' [multi-database
+* Your app does not require Rails' [multi-database
   support](https://guides.rubyonrails.org/active_record_multiple_databases.html)
+  in order to be tested
 
 * Your app has the binstubs `bin/rake` and `bin/rails` that Rails generates and
-  they work (you can regenerate them with `rails app:update:bin`)
+  they work (protip: you can regenerate them with `rails app:update:bin`)
 
 * Your `database.yml` defines a `&default` alias from which to extend the
-  `test_data` database configuration (if it lacks one, you'll need specify the
-  database's configuration on your own)
+  `test_data` database configuration (if your YAML file lacks one, you can
+  always specify the `test_data` database configuration manually)
 
 ## Fears, Uncertainties, and Doubts
 
@@ -702,7 +1013,7 @@ designed to address. We hope you'll consider trying it with an open mind. At the
 same time, we acknowledge that large test suites can't be rewritten and migrated
 to a different source of test data overnight—nor should they be! See our notes
 on [migrating to `test_data`
-incrementally](#we-already-have-thousands-of-tests-that-depend-on-rails-fixtures-or-factory_bot-can-we-start-using-test_data-without-throwing-them-away-and-starting-over)
+incrementally](#factory--fixture-interoperability-guide)
 
 ### How will I handle merge conflicts in these SQL files if I have lots of people working on lots of feature branches all adding to the `test_data` database dumps?
 
@@ -728,124 +1039,6 @@ of test data, as they'll be more likely to frustrate your ability to rapidly
 iterate than detect bugs. Once you you have a reasonably stable feature working
 end-to-end, that's a good moment to start adding integration tests (and thus
 pulling in a test data gem like this one to help you).
-
-### We already have thousands of tests that depend on Rails fixtures or factory_bot; can we start using this gem without throwing them away and starting over?
-
-Yes, `test_data` was written with this sort of incremental transition in mind!
-
-Our strongest recommendation is to write each test against only a single source
-of test data. Integration tests inevitably become coupled to the data that's
-available to them, and if a test has access to fixtures, records created by a
-factory, and a `test_data` SQL dump, it is likely to unintentionally become
-dependent on all three. This could result in the test having more ways to fail
-than necessary and make it harder to simplify your test data strategy later.
-Instead, consider explicitly opting into a single type of test data for each
-test.
-
-The rest comes down to how you want to organize your tests, as discussed below.
-
-#### Approach 1: test-data-specific test subclasses
-
-If you're currently using `factory_bot`, you might already have something like
-this in your `test_helper.rb` file:
-
-```ruby
-class ActiveSupport::TestCase
-  include FactoryBot::Syntax::Methods
-end
-```
-
-To avoid including these methods with every Rails-aware test, you might consider
-pushing down new classes for each source of test data:
-
-```ruby
-# Tests using data created by `test_data`
-class TestDataTestCase < ActiveSupport::TestCase
-  def setup
-    TestData.load
-  end
-
-  def teardown
-    TestData.rollback
-  end
-end
-
-# Tests using data created by `factory_bot`
-class FactoryBotTestCase < ActiveSupport::TestCase
-  include FactoryBot::Syntax::Methods
-
-  def setup
-    TestData.truncate
-  end
-
-  def teardown
-    TestData.rollback(:after_data_truncate)
-  end
-end
-```
-
-From there, the class that each test extends will indicate which test data
-strategy it uses.
-
-This approach may work in simple cases, but won't be well-suited to if you're
-already extending any of the half-dozen subclasses of `ActiveSupport::TestCase`
-provided by Rails (or their analogues from
-[rspec-rails](https://github.com/rspec/rspec-rails)).
-
-#### Approach 2: write a helper method to set things up for you
-
-Every situation will be different, but one strategy that suits a lot of
-circumstances would be to write a method to declare and configure the test data
-strategy for the current test.
-
-Taking from [this
-example](/example/test/integration/better_mode_switching_demo_test.rb) test, you
-could implement a class method like this:
-
-```ruby
-class ActiveSupport::TestCase
-  def self.test_data_mode(mode)
-    case mode
-    when :factory_bot
-      require "factory_bot_rails"
-      include FactoryBot::Syntax::Methods
-
-      setup do
-        TestData.truncate
-      end
-
-      teardown do
-        TestData.rollback(:after_data_truncate)
-      end
-    when :test_data
-      setup do
-        TestData.load
-      end
-
-      teardown do
-        TestData.rollback
-      end
-    end
-  end
-end
-```
-
-And then (without any class inheritance complications), simply declare which
-kind of test you're specifying:
-
-```ruby
-class SomeFactoryUsingTest < ActiveSupport::TestCase
-  test_data_mode :factory_bot
-
-  # … tests go here
-end
-
-class SomeTestDataUsingTest < ActionDispatch::IntegrationTest
-  test_data_mode :test_data
-
-  # etc.
-end
-```
 
 ### Why can't I save multiple database dumps to cover different scenarios?
 
