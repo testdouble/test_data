@@ -393,7 +393,26 @@ segregation between your factory-dependent tests and your tests that rely on
 your `test_data` database by wrapping each test that depends on `factory_bot`
 with [TestData.truncate](#testdatatruncate) in a before-each hook and
 [TestData.rollback(:after_data_truncate)](#rolling-back-to-after-test-data-was-truncated)
-in an after-each hook. What this will do is complicated and counter-intuitive,
+in an after-each hook, like this:
+
+```ruby
+class AnExistingFactoryUsingTest < ActiveSupport::Testcase
+  def setup
+    TestData.truncate
+    # pre-existing setup
+  end
+
+  def test_stuff
+    #… etc
+  end
+
+  def teardown
+    TestData.rollback(:after_truncate)
+  end
+end
+```
+
+What this will do is complicated and counter-intuitive,
 but fast and reliable: `TestData.truncate` will first ensure that your
 `test_data` database is loaded inside a transaction, then will truncate that
 data (see the `truncate_these_test_data_tables` config option if it doesn't just
@@ -542,7 +561,8 @@ Here's what you can do if you can't get your fixtures to play nicely with your
    would. Because your fixtures won't be loaded automatically, they won't be
    available to these tests
 
-3. In tests that need fixtures, call `TestData.load_rails_fixtures` in a
+3. In tests that need fixtures, call
+   [TestData.load_rails_fixtures]([TestData.load_rails_fixtures](#testdataload_rails_fixtures)) in a
    before-each hook and `TestData.rollback(:after_load_rails_fixtures)` in an
    after-each hook. This will (in an almost comic level of transaction-nesting)
    ensure your `test_data` dump is loaded in a first transaction, ensure that it
@@ -568,6 +588,7 @@ class AnExistingFixtureUsingTest < ActiveSupport::Testcase
     TestData.rollback(:after_load_rails_fixtures)
   end
 end
+```
 
 #### Separating your `test_data` and fixture tests
 
@@ -857,19 +878,20 @@ Because the gem loads your data in a transaction, it makes it easy to rollback
 to any of its defined savepoints (`:before_data_load`, `:after_data_load`, and
 `:after_data_truncate`). In most cases you'll want to roll back to
 `:after_data_load` after each test, and that's what `TestData.rollback` will do
-when called without an argument. More details on rolling back to each of the
-gem's savepoints follows below.
+when called without an argument. If the savepoint isn't active, calling
+`rollback` is a no-op.
 
-#### Rolling back to after the data was loaded
+The gem currently will make up to four nested savepoints in a transaction, and
+this method allows you to rollback to any of them. They form the following
+stack:
 
-When `TestData.rollback` is passed no arguments or called more explicitly as
-`TestData.rollback(:after_data_load)`, the method will rollback to the
-`:after_data_load` transaction savepoint taken immediately after the SQL dump
-was loaded. As a result, it is intended to be run after each test (e.g. in an
-`after(:each)` or `teardown`), to undo any changes made by the test.
+* `:before_data_load` - Taken before loading your `test_data` dump
+* `:after_data_load` - Taken after loading your `test_data` dump
+* `:after_truncate` - Taken after your `test_data` is truncated
+* `:after_load_rails_fixtures` - Taken after Rails fixtures are loaded via
+  `TestData.load_rails_fixtures`
 
-(Calling `TestData.rollback` when no `:after_data_load` save point is active is
-a no-op.)
+More details on rolling back to each of the gem's savepoints follows below.
 
 #### Rolling back to before test data was loaded
 
@@ -878,9 +900,6 @@ that depend on that data _not being there_, you probably want to call
 [TestData.truncate](#testdatatruncate). But if that won't work for your needs,
 you can rewind to the moment just before your test data was loaded by calling
 `TestData.rollback(:before_data_load)`.
-
-(Calling `TestData.rollback` when no `:before_data_load` save point is active is
-a no-op.)
 
 **⚠️ Warning:** Repeatedly loading and rolling back to `:before_data_load` is
 expensive! If your test suite calls `TestData.rollback(:before_data_load)`
@@ -893,16 +912,33 @@ random or arbitrary order) to avoid repeatedly thrashing between rollbacks and
 reloads. This partitioning could be accomplished by either configuring your test
 runner or by running separate test commands for each group of tests.
 
+#### Rolling back to after the data was loaded
+
+This is the way you're likely to call this method most often.
+
+When `TestData.rollback` is passed no arguments or called more explicitly as
+`TestData.rollback(:after_data_load)`, the method will rollback to the
+`:after_data_load` transaction savepoint taken immediately after the SQL dump
+was loaded. As a result, it is intended to be run after each test (e.g. in an
+`after(:each)` or `teardown`), to undo any changes made by the test.
+
 #### Rolling back to after test data was truncated
 
 If some of your tests call [TestData.truncate](#testdatatruncate) to clear out
-your test data after it's been loaded, then you will likely want to run
-`TestData.rollback(:after_data_truncate)` after each of them. This will rewind
-your test database's state to when those tables were first truncated—effectively
-re-cleaning the slate for the next test.
+your test data after it's been loaded (as
+[described](#getting-your-factory-tests-passing-after-adding-test_data) when
+using `test_data` in conjunction with `factory_bot`), then you will likely want
+to run `TestData.rollback(:after_data_truncate)` after each of them. This will
+rewind your test database's state to when those tables were first
+truncated—effectively re-cleaning the slate for the next test.
 
-(Calling `TestData.rollback` when no `:after_data_truncate` save point is active
-is a no-op.)
+#### Rolling back to after Rails fixtures were loaded
+
+If you're using [TestData.load_rails_fixtures](#testdataload_rails_fixtures) in
+your test's before-each hook, you'll probably want to teardown that test by
+rolling back with `TestData.rollback(:after_load_rails_fixtures)` in an
+after-each hook, which will rewind back to the point just after your Rails
+fixtures were freshly added.
 
 ### TestData.truncate
 
@@ -955,6 +991,39 @@ in:
 Just [like TestData.load](#loading-without-transactions), you can call
 `TestData.truncate` when `use_transactional_data_loader` is `false` and it will
 commit the truncation.
+
+### TestData.prevent_rails_fixtures_from_loading_automatically!
+
+Call this method before any tests have been loaded or executed by your test
+runner if you're planning to use
+[TestData.load_rails_fixtures](#testdataload_rails_fixtures) to load Rails
+fixtures into any of your tests. This method will disable the default behavior
+of loading your Rails fixtures into the test database as soon as the first test
+case with fixtures enabled is executed.
+
+[Source](/lib/test_data/active_record_ext.rb)
+
+### TestData.load_rails_fixtures
+
+As described in this README's [fixture interop
+guide](#getting-your-fixtures-dependent-tests-passing-with-test_data),
+`TestData.load_rails_fixtures` will ultimately load your app's [Rails
+fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
+into an effectively empty test database inside a nested transaction.
+
+To use this feature requires that you've:
+
+1. invoked
+[TestData.prevent_rails_fixtures_from_loading_automatically](#testdataprevent_rails_fixtures_from_loading_automatically)
+2. Have `config.use_transactional_data_loader` set to true (the default) in your
+   [config](#testdataconfig)
+
+And when you call this method, it will do the following:
+
+1. Verify your `test_data` dump has been loaded (or else load it)
+2. Verify the loaded data has been truncated (or else truncate it)
+3. Load your Rails fixtures from their YAML source files into your test database
+4. Create a new savepoint in the nested transactions
 
 ## Assumptions
 
