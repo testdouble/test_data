@@ -46,12 +46,38 @@ diligence necessary to achieve fast, isolated tests that scale with your
 application.
 
 1. [Getting Started Guide](#getting-started-guide)
+  1. [Install and initialize
+     `test_data`](#step-1-install-and-initialize-test_data)
+  2. [Create some test data](#step-2-create-some-test-data)
+  3. [Dump your `test_data` database](#step-3-dump-your-test_data-database)
+  4. [Load your data in your tests](#step-4-load-your-data-in-your-tests)
+  5. [Keeping your test data
+     up-to-date](#step-5-keeping-your-test-data-up-to-date)
 2. [Factory & Fixture Interoperability
    Guide](#factory--fixture-interoperability-guide)
+  * [Using `test_data` with `factory_bot`](#using-test_data-with-factory_bot)
+  * [Using `test_data` with Rails fixtures](#using-test_data-with-rails-fixtures)
 3. [Rake Task Reference](#rake-task-reference)
+  * [test_data:install](#test_datainstall)
+  * [test_data:configure](#test_dataconfigure)
+  * [test_data:initialize](#test_datainitialize)
+  * [test_data:dump](#test_datadump)
+  * [test_data:load](#test_dataload)
+  * [test_data:create_database](#test_datacreate_database)
+  * [test_data:drop_database](#test_datadrop_database)
 4. [API Reference](#api-reference)
+  * [TestData.config](#testdataconfig)
+  * [TestData.load](#testdataload)
+  * [TestData.rollback](#testdatarollback)
+    * [TestData.rollback(:before_data_load)](#rolling-back-to-before-test-data-was-loaded)
+    * [TestData.rollback(:after_data_load)](#rolling-back-to-after-the-data-was-loaded)
+    * [TestData.rollback(:after_data_truncate)](#rolling-back-to-after-test-data-was-truncated)
+    * [TestData.rollback(:after_load_rails_fixtures)](#rolling-back-to-after-rails-fixtures-were-loaded)
+  * [TestData.truncate](#testdatatruncate)
+  * [TestData.TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
+  * [TestData.load_rails_fixtures](#testdataload_rails_fixtures)
 5. [Assumptions](#assumptions)
-6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts)
+6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts) (Q & A)
 7. [Code of Conduct](#code-of-conduct)
 8. [Changelog](/CHANGELOG.md)
 9. [MIT License](/LICENSE.txt)
@@ -1023,7 +1049,12 @@ And when you call this method, it will do the following:
 1. Verify your `test_data` dump has been loaded (or else load it)
 2. Verify the loaded data has been truncated (or else truncate it)
 3. Load your Rails fixtures from their YAML source files into your test database
-4. Create a new savepoint in the nested transactions
+4. Create a new savepoint in the nested transactions named
+   `:after_load_rails_fixtures`
+
+Once loaded, your tests will be able to use your test fixtures inside a
+transaction. At teardown-time, you can reset those fixtures by rolling back with
+[TestData.rollback(:after_load_rails_fixtures)](#rolling-back-to-after-rails-fixtures-were-loaded).
 
 ## Assumptions
 
