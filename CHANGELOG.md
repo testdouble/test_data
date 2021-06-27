@@ -1,4 +1,4 @@
-# unreleased
+# 0.1.0
 
 - New feature: `TestData.load_rails_fixtures` to override default fixtures
   behavior by loading it in a nested transaction after `TestData.truncate`
