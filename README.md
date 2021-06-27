@@ -381,10 +381,16 @@ suites will already be relying on
 fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures).
 While `test_data` is designed to be an alternative to both of these approaches
 to managing your test data, it wouldn't be practical to ask a team to rewrite
-their existing tests before migrating to a different tool. That's why the
-`test_data` gem goes to great lengths to play nicely with both of them, while
-still ensuring each test is wrapped in an isolated and fast always-rolled-back
-transaction.
+all their existing tests in order to migrate to a different tool. That's why the
+`test_data` gem goes to great lengths to play nicely with your existing tests,
+while ensuring each test is wrapped in an isolated and fast always-rolled-back
+transaction—regardless if the test depends on `test_data`, factories, fixtures,
+all three, or none-of-the-above.
+
+This section will hopefully make it a little easier to incorporate new
+`test_data` tests into a codebase that's already using `factory_bot` and Rails
+fixtures, whether you choose to incrementally rewrite the older tests to conform
+to your `test_data` or not.
 
 ### Using `test_data` with `factory_bot`
 
@@ -395,26 +401,10 @@ This section will document some thoughts and strategies for introducing
 
 Depending on the assumptions your tests make about the state of the database
 before you've loaded any factories, it's possible that everything will "just
-work" if you've added `TestData.load` in a before-each hook and
-`TestData.rollback` in an after-each hook (as shown in the [setup
+work" after adding `TestData.load` in a before-each hook and `TestData.rollback`
+in an after-each hook (as shown in the [setup
 guide](#step-4-load-your-data-in-your-tests)). So by all means, try running your
 suite after following the initial setup guide and see if the suite just passes.
-
-The first thing to consider is how database cleanup is being handled by the test
-suite. It's possible that your suite is relying on Rails' built-in
-`use_transactional_tests` feature to wrap your tests in always-rolled-back
-transactions, even if you're not using fixtures. Or perhaps your suite uses
-[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
-truncate the database before or after each test. In either case, it's important
-to know that by default `TestData.load` and `TestData.rollback` will start and
-rollback a nested transaction, respectively. That means—so long as they're
-called at the top of your before-each hooks and the end of your after-each
-hooks—you might be able to disable `use_transactional_tests` or remove your
-dependency on `database_cleaner` or any custom truncation logic you might be
-depending on. Even if you get your suite running immediately after adding
-`test_data`, it's still worth taking the time to understand what's going on
-during test setup & teardown, because there may be an opportunity to make your
-tests faster and more comprehensible by eliminating redundant clean-up steps.
 
 If you find that your test suite is failing after adding `TestData.load` to your
 setup, don't panic! It probably means that you have test data and factory
@@ -534,6 +524,26 @@ to any of your `test_data`, either. From there, you can  migrate tests onto
 tangling your tests' dependency graph further.
 
 #### Improving test suite speed with factories
+
+##### Addressing redundant data cleanup
+
+The first thing to consider is how database cleanup is being handled by the test
+suite. It's possible that your suite is relying on Rails' built-in
+`use_transactional_tests` feature to wrap your tests in always-rolled-back
+transactions, even if you're not using fixtures. Or perhaps your suite uses
+[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
+truncate the database before or after each test. In either case, it's important
+to know that by default `TestData.load` and `TestData.rollback` will start and
+rollback a nested transaction, respectively. That means—so long as they're
+called at the top of your before-each hooks and the end of your after-each
+hooks—you might be able to disable `use_transactional_tests` or remove your
+dependency on `database_cleaner` or any custom truncation logic you might be
+depending on. Even if you get your suite running immediately after adding
+`test_data`, it's still worth taking the time to understand what's going on
+during test setup & teardown, because there may be an opportunity to make your
+tests faster and more comprehensible by eliminating redundant clean-up steps.
+
+##### Avoiding truncate rollback churn
 
 It's important to know that if your test suite has a mix of tests that call
 `TestData.load` and tests that call `TestData.truncate`, each time the test
