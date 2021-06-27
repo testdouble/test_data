@@ -5,11 +5,11 @@
 - Breaking change: move transactions configuration out of `TestData.load` and
   instead a global setting for `TestData.config` named
   `use_transactional_data_loader`
+- Cascades truncation of test_data tables unless they're explicitly specified by
+  the truncate_these_test_data_tables` option
 - Add secrets.yml and cable.yml generators to `test_data:configure` task
 - Print the size of each dump and warn when dump size reaches certain thresholds
   or increases significantly in the `test_data:dump` task
-- Print server logs to STDOUT when running `bin/rails server` in the `test_data`
-  environment
 
 # 0.0.2
 
