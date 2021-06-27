@@ -67,7 +67,7 @@ module TestData
 
     def execute_data_truncate
       connection.disable_referential_integrity do
-        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} CASCADE")
+        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} #{"CASCADE" unless @config.truncate_these_test_data_tables.present?}")
       end
       @statistics.count_truncate!
     end
