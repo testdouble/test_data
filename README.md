@@ -78,7 +78,7 @@ application.
         * [TestData.rollback(:after_load_rails_fixtures)](#rolling-back-to-after-rails-fixtures-were-loaded)
     * [TestData.truncate](#testdatatruncate)
     * [TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
-    * [TestData.load_rails_fixtures](#testdataload_rails_fixtures)
+    * [TestData.load_rails_fixtures(self)](#testdataload_rails_fixtures)
 5. [Assumptions](#assumptions)
 6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts) (Q & A)
 7. [Code of Conduct](#code-of-conduct)
@@ -625,7 +625,7 @@ Here's what you can do if you can't get your fixtures to play nicely with your
    available to these tests
 
 3. In tests that need fixtures, call
-   [TestData.load_rails_fixtures](#testdataload_rails_fixtures)
+   [TestData.load_rails_fixtures(self)](#testdataload_rails_fixtures)
    in a before-each hook and
    [TestData.rollback(:after_load_rails_fixtures)](#rolling-back-to-after-rails-fixtures-were-loaded)
    in an after-each hook. This will (in an almost comic level of
@@ -641,7 +641,7 @@ test to get it passing:
 ```ruby
 class AnExistingFixtureUsingTest < ActiveSupport::Testcase
   def setup
-    TestData.load_rails_fixtures
+    TestData.load_rails_fixtures(self)
     # pre-existing setup
   end
 
@@ -662,7 +662,8 @@ state is correct before loading your fixtures.]_
 #### Separating your `test_data` and fixture tests
 
 *This only applies if you had to use
-[TestData.load_rails_fixtures](#testdataload_rails_fixtures) as shown above.*
+[TestData.load_rails_fixtures(self)](#testdataload_rails_fixtures) as shown
+above.*
 
 Just [like with factories](#separating-your-test_data-and-factory-tests), you
 might benefit from a test helper to clearly declare whether a test uses fixtures
@@ -676,7 +677,7 @@ class ActiveSupport::TestCase
       fixtures :all
 
       setup do
-        TestData.load_rails_fixtures
+        TestData.load_rails_fixtures(self)
       end
 
       teardown do
@@ -1042,11 +1043,11 @@ truncated—effectively re-cleaning the slate for the next test.
 
 #### Rolling back to after Rails fixtures were loaded
 
-If you're using [TestData.load_rails_fixtures](#testdataload_rails_fixtures) in
-your test's before-each hook, you'll probably want to teardown that test by
-rolling back with `TestData.rollback(:after_load_rails_fixtures)` in an
-after-each hook, which will rewind to the point just after your Rails fixtures
-were loaded.
+If you're using
+[TestData.load_rails_fixtures(self)](#testdataload_rails_fixtures) in your
+test's before-each hook, you'll probably want to teardown that test by rolling
+back with `TestData.rollback(:after_load_rails_fixtures)` in an after-each hook,
+which will rewind to the point just after your Rails fixtures were loaded.
 
 ### TestData.truncate
 
@@ -1101,7 +1102,10 @@ As described in this README's [fixture interop
 guide](#getting-your-fixtures-dependent-tests-passing-with-test_data),
 `TestData.load_rails_fixtures` will load your app's [Rails
 fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
-into an effectively empty test database inside a nested transaction.
+into an effectively empty test database inside a nested transaction. Because the
+feature uses Rails built-in fixtures-loading code as well as its caching
+mechanism, the method must be passed an instance of the running test class (in
+a Minitest `setup` hook, that means `TestData.load_rails_fixtures(self)`)
 
 Using this feature requires that you've:
 
