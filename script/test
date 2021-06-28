@@ -51,6 +51,7 @@ bin/rails test test/integration/transaction_committing_boops_test.rb
 
 # Run a test that prevents Rails fixtures for preloading and then loads them in a transaction
 bin/rails test test/integration/rails_fixtures_override_test.rb
+bundle exec rspec spec/requests/rails_fixtures_override_spec.rb
 
 # Run a test that forgets to prevent Rails fixtures but then tries to load them in a transaction
 bin/rails test test/integration/rails_fixtures_double_load_test.rb
