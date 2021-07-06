@@ -26,6 +26,7 @@ class FixturesUsingTest < ActiveSupport::TestCase
   end
 
   def test_has_fixture_boops
+    assert boops(:boop_1).persisted?
     assert_equal 2, Boop.count
   end
 
