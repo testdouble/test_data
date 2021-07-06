@@ -1,3 +1,8 @@
+# unreleased
+
+- [#2](https://github.com/testdouble/test_data/issues/2) - Work around
+  hard-coded environment names when initializing test_data environment secrets
+
 # 0.1.0
 
 - New feature: `TestData.load_rails_fixtures` to override default fixtures
