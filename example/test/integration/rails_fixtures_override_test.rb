@@ -43,17 +43,17 @@ class FixturesUsingTest < ActiveSupport::TestCase
 
   def test_load_and_rollback_leaves_them_as_is
     boop = Boop.first
-    original_created_at_time = boop.created_at
-    a_year_ago = 1.year.ago
+    original_created_on = boop.created_at.to_date
+    a_year_ago = 1.year.ago.to_date
 
     boop.update!(created_at: a_year_ago)
 
-    assert_equal Boop.find(boop.id).created_at, a_year_ago
+    assert_equal Boop.find(boop.id).created_at.to_date, a_year_ago
 
     # Now after rollback
     TestData.rollback(:after_load_rails_fixtures)
 
-    assert_equal Boop.find(boop.id).created_at, original_created_at_time
+    assert_equal Boop.find(boop.id).created_at.to_date, original_created_on
   end
 
   teardown do

@@ -43,17 +43,17 @@ RSpec.describe "FixturesUsingTest", type: :request do
 
   it "load_and_rollback_leaves_them_as_is" do
     boop = Boop.first
-    original_created_at_time = boop.created_at
-    a_year_ago = 1.year.ago
+    original_created_on = boop.created_at.to_date
+    a_year_ago = 1.year.ago.to_date
 
     boop.update!(created_at: a_year_ago)
 
-    expect(Boop.find(boop.id).created_at).to eq(a_year_ago)
+    expect(Boop.find(boop.id).created_at.to_date).to eq(a_year_ago)
 
     # Now after rollback
     TestData.rollback(:after_load_rails_fixtures)
 
-    expect(Boop.find(boop.id).created_at).to eq(original_created_at_time)
+    expect(Boop.find(boop.id).created_at.to_date).to eq(original_created_on)
   end
 
   after(:each) do
