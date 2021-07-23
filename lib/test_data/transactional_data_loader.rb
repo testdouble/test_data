@@ -25,36 +25,13 @@ module TestData
   end
 
   def self.insert_test_data_dump
-    InsertsTestDataDump.new.call
-  end
-
-  class InsertsTestDataDump
-    def initialize
-      @config = TestData.config
-      @statistics = TestData.statistics
-    end
-
-    def call
-      search_path = connection.execute("show search_path").first["search_path"]
-      connection.disable_referential_integrity do
-        connection.execute(File.read(@config.data_dump_full_path))
-      end
-      connection.execute <<~SQL
-        select pg_catalog.set_config('search_path', '#{search_path}', false)
-      SQL
-      @statistics.count_load!
-    end
-
-    private
-
-    def connection
-      ActiveRecord::Base.connection
-    end
+    InsertsTestData.new.call
   end
 
   class TransactionalDataLoader
     def initialize
-      @inserts_test_data_dump = InsertsTestDataDump.new
+      @inserts_test_data = InsertsTestData.new
+      @truncates_test_data = TruncatesTestData.new
       @config = TestData.config
       @statistics = TestData.statistics
       @save_points = []
@@ -66,7 +43,7 @@ module TestData
       return rollback_to_after_data_load if save_point_active?(:after_data_load)
 
       create_save_point(:before_data_load)
-      @inserts_test_data_dump.call
+      @inserts_test_data.call
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
     end
@@ -74,7 +51,8 @@ module TestData
     def rollback_to_before_data_load
       if save_point_active?(:before_data_load)
         rollback_save_point(:before_data_load)
-        # No need to recreate the save point -- TestData.uses_test_data will if called
+        # No need to recreate the save point
+        # (TestData.uses_test_data will if called)
       end
     end
 
@@ -121,7 +99,7 @@ module TestData
         load
       end
 
-      execute_data_truncate
+      @truncates_test_data.call
       record_ar_internal_metadata_that_test_data_is_truncated
       create_save_point(:after_data_truncate)
     end
@@ -148,29 +126,12 @@ module TestData
 
     private
 
-    def execute_data_truncate
-      connection.disable_referential_integrity do
-        connection.execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} #{"CASCADE" unless @config.truncate_these_test_data_tables.present?}")
-      end
-      @statistics.count_truncate!
-    end
-
     def execute_load_rails_fixtures(test_instance)
       test_instance.pre_loaded_fixtures = false
       test_instance.use_transactional_tests = false
       test_instance.__test_data_gem_setup_fixtures
       @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
       @statistics.count_load_rails_fixtures!
-    end
-
-    def tables_to_truncate
-      if @config.truncate_these_test_data_tables.present?
-        @config.truncate_these_test_data_tables
-      else
-        @tables_to_truncate ||= IO.foreach(@config.data_dump_path).grep(/^INSERT INTO/) { |line|
-          line.match(/^INSERT INTO ([^\s]+)/)&.captures&.first
-        }.compact.uniq
-      end
     end
 
     def connection
