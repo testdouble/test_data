@@ -25,87 +25,16 @@ module TestData
   end
 
   def self.insert_test_data_dump
-    CommittingDataLoader.new.load
+    @data_loader ||= TransactionalDataLoader.new
+    @data_loader.insert_test_data_dump
   end
 
-  class AbstractDataLoader
+  class TransactionalDataLoader
     def initialize
       @config = TestData.config
       @statistics = TestData.statistics
-    end
-
-    protected
-
-    def execute_data_load
-      search_path = execute("show search_path").first["search_path"]
-      connection.disable_referential_integrity do
-        execute(File.read(@config.data_dump_full_path))
-      end
-      execute <<~SQL
-        select pg_catalog.set_config('search_path', '#{search_path}', false)
-      SQL
-      @statistics.count_load!
-    end
-
-    def execute_data_truncate
-      connection.disable_referential_integrity do
-        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} #{"CASCADE" unless @config.truncate_these_test_data_tables.present?}")
-      end
-      @statistics.count_truncate!
-    end
-
-    def execute_load_rails_fixtures(test_instance)
-      test_instance.pre_loaded_fixtures = false
-      test_instance.use_transactional_tests = false
-      test_instance.__test_data_gem_setup_fixtures
-      @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
-      @statistics.count_load_rails_fixtures!
-    end
-
-    def tables_to_truncate
-      if @config.truncate_these_test_data_tables.present?
-        @config.truncate_these_test_data_tables
-      else
-        @tables_to_truncate ||= IO.foreach(@config.data_dump_path).grep(/^INSERT INTO/) { |line|
-          line.match(/^INSERT INTO ([^\s]+)/)&.captures&.first
-        }.compact.uniq
-      end
-    end
-
-    def connection
-      ActiveRecord::Base.connection
-    end
-
-    private
-
-    def execute(sql)
-      connection.execute(sql)
-    end
-  end
-
-  class CommittingDataLoader < AbstractDataLoader
-    def transactional?
-      false
-    end
-
-    def load
-      execute_data_load
-    end
-
-    def truncate
-      execute_data_truncate
-    end
-  end
-
-  class TransactionalDataLoader < AbstractDataLoader
-    def initialize
-      super
       @save_points = []
       @already_loaded_rails_fixtures = {}
-    end
-
-    def transactional?
-      true
     end
 
     def load
@@ -113,7 +42,7 @@ module TestData
       return rollback_to_after_data_load if save_point_active?(:after_data_load)
 
       create_save_point(:before_data_load)
-      execute_data_load
+      insert_test_data_dump
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
     end
@@ -193,7 +122,51 @@ module TestData
       create_save_point(:after_load_rails_fixtures)
     end
 
+    def insert_test_data_dump
+      search_path = execute("show search_path").first["search_path"]
+      connection.disable_referential_integrity do
+        execute(File.read(@config.data_dump_full_path))
+      end
+      execute <<~SQL
+        select pg_catalog.set_config('search_path', '#{search_path}', false)
+      SQL
+      @statistics.count_load!
+    end
+
     private
+
+    def execute_data_truncate
+      connection.disable_referential_integrity do
+        execute("TRUNCATE TABLE #{tables_to_truncate.map { |t| connection.quote_table_name(t) }.join(", ")} #{"CASCADE" unless @config.truncate_these_test_data_tables.present?}")
+      end
+      @statistics.count_truncate!
+    end
+
+    def execute_load_rails_fixtures(test_instance)
+      test_instance.pre_loaded_fixtures = false
+      test_instance.use_transactional_tests = false
+      test_instance.__test_data_gem_setup_fixtures
+      @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
+      @statistics.count_load_rails_fixtures!
+    end
+
+    def tables_to_truncate
+      if @config.truncate_these_test_data_tables.present?
+        @config.truncate_these_test_data_tables
+      else
+        @tables_to_truncate ||= IO.foreach(@config.data_dump_path).grep(/^INSERT INTO/) { |line|
+          line.match(/^INSERT INTO ([^\s]+)/)&.captures&.first
+        }.compact.uniq
+      end
+    end
+
+    def connection
+      ActiveRecord::Base.connection
+    end
+
+    def execute(sql)
+      connection.execute(sql)
+    end
 
     def ensure_after_load_save_point_is_active_if_data_is_loaded!
       if !save_point_active?(:after_data_load) && ar_internal_metadata_shows_test_data_is_loaded?
