@@ -29,17 +29,8 @@ module TestData
     # Tables to exclude from all dumps
     attr_accessor :dont_dump_these_tables
 
-    # Tables to truncate when TestData.truncate is called
+    # Tables to truncate when TestData.uses_clean_slate is called
     attr_accessor :truncate_these_test_data_tables
-
-    # Perform TestData.load and TestData.truncate inside nested
-    # transactions for increased test isolation and speed. Setting this to false
-    # will disable several features that depend on transactions being used
-    attr_reader :use_transactional_data_loader
-    def use_transactional_data_loader=(use_transactions)
-      TestData.ensure_we_dont_mix_transactional_and_non_transactional_data_loaders!(use_transactions)
-      @use_transactional_data_loader = use_transactions
-    end
 
     # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
     def log_level
@@ -73,7 +64,6 @@ module TestData
       @non_test_data_tables = []
       @dont_dump_these_tables = []
       @truncate_these_test_data_tables = nil
-      @use_transactional_data_loader = true
     end
 
     def database_yaml

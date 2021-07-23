@@ -9,10 +9,6 @@ class SerializedNonTransactionalTestCase < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
-    TestData.load
-  end
-
-  teardown do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end

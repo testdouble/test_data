@@ -6,11 +6,7 @@ class ParallelizedTransactionalFixturefullTestCase < ActiveSupport::TestCase
   fixtures :all
 
   setup do
-    TestData.load
-  end
-
-  teardown do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end
 

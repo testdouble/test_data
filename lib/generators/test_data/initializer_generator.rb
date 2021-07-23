@@ -24,16 +24,10 @@ module TestData
           # Tables whose data should be excluded from SQL dumps (still dumps their schema DDL)
           # config.dont_dump_these_tables = []
 
-          # Tables whose data should be truncated by TestData.truncate
+          # Tables whose data should be truncated by TestData.uses_clean_slate
           #   If left as `nil`, all tables inserted into by the SQL file at
           #   `data_dump_path` will be truncated
           # config.truncate_these_test_data_tables = nil
-
-          # Perform TestData.load and TestData.truncate inside nested
-          #   transactions for increased test isolation and speed. Setting this
-          #   to false will disable several features that depend on transactions
-          #   being used
-          # config.use_transactional_data_loader = true
 
           # Log level (valid values: [:debug, :info, :warn, :error, :quiet])
           #   Can also be set with env var TEST_DATA_LOG_LEVEL

@@ -1,49 +1,31 @@
 module TestData
-  def self.load
-    @data_loader ||= TestData.config.use_transactional_data_loader ? TransactionalDataLoader.new : CommittingDataLoader.new
+  def self.uninitialize
+    @data_loader ||= TransactionalDataLoader.new
+    @data_loader.rollback_to_before_data_load
+  end
+
+  def self.uses_test_data
+    @data_loader ||= TransactionalDataLoader.new
     @data_loader.load
   end
 
-  def self.ensure_we_dont_mix_transactional_and_non_transactional_data_loaders!(use_transactions)
-    unless @data_loader.nil? || use_transactions == @data_loader.transactional?
-      raise Error.new("There is already a #{@data_loader.transactional? ? "transactional" : "non-transactional"} data loader in use, and test_data does not support mixing both types of loaders in a single process.")
-    end
-  end
-
-  def self.rollback(save_point_name = :after_data_load)
-    unless TestData.config.use_transactional_data_loader
-      raise Error.new("TestData.rollback requires config.use_transactional_data_loader = true")
-    end
+  def self.uses_clean_slate
     @data_loader ||= TransactionalDataLoader.new
-    case save_point_name
-    when :before_data_load
-      @data_loader.rollback_to_before_data_load
-    when :after_data_load
-      @data_loader.rollback_to_after_data_load
-    when :after_data_truncate
-      @data_loader.rollback_to_after_data_truncate
-    when :after_load_rails_fixtures
-      @data_loader.rollback_to_after_load_rails_fixtures
-    else
-      raise Error.new("No known save point named '#{save_point_name}'. Valid values are: [:before_data_load, :after_data_load, :after_data_truncate, :after_load_rails_fixtures]")
-    end
-  end
-
-  def self.truncate
-    @data_loader ||= TestData.config.use_transactional_data_loader ? TransactionalDataLoader.new : CommittingDataLoader.new
     @data_loader.truncate
   end
 
-  def self.load_rails_fixtures(test_instance)
+  def self.uses_rails_fixtures(test_instance)
     if !test_instance.respond_to?(:setup_fixtures)
-      raise Error.new("'TestData.load_rails_fixtures' must be passed a test instance that has had ActiveRecord::TestFixtures mixed-in (e.g. `TestData.load_rails_fixtures(self)` in an ActiveSupport::TestCase `setup` block), but the provided argument does not respond to 'setup_fixtures'")
+      raise Error.new("'TestData.uses_rails_fixtures(self)' must be passed a test instance that has had ActiveRecord::TestFixtures mixed-in (e.g. `TestData.uses_rails_fixtures(self)` in an ActiveSupport::TestCase `setup` block), but the provided argument does not respond to 'setup_fixtures'")
     elsif !test_instance.respond_to?(:__test_data_gem_setup_fixtures)
-      raise Error.new("'TestData.load_rails_fixtures' depends on Rails' default fixture-loading behavior being disabled by calling 'TestData.prevent_rails_fixtures_from_loading_automatically!' as early as possible (e.g. near the top of your test_helper.rb), but it looks like it was never called.")
-    elsif !TestData.config.use_transactional_data_loader
-      raise Error.new("'TestData.load_rails_fixtures' requires config.use_transactional_data_loader = true")
+      raise Error.new("'TestData.uses_rails_fixtures(self)' depends on Rails' default fixture-loading behavior being disabled by calling 'TestData.prevent_rails_fixtures_from_loading_automatically!' as early as possible (e.g. near the top of your test_helper.rb), but it looks like it was never called.")
     end
     @data_loader ||= TransactionalDataLoader.new
     @data_loader.load_rails_fixtures(test_instance)
+  end
+
+  def self.insert_test_data_dump
+    CommittingDataLoader.new.load
   end
 
   class AbstractDataLoader
@@ -139,7 +121,7 @@ module TestData
     def rollback_to_before_data_load
       if save_point_active?(:before_data_load)
         rollback_save_point(:before_data_load)
-        # No need to recreate the save point -- TestData.load will if called
+        # No need to recreate the save point -- TestData.uses_test_data will if called
       end
     end
 
@@ -182,7 +164,7 @@ module TestData
         # should expect that the existence of :after_data_truncate save point
         # implies that it's safe to rollback to the :after_data_load save
         # point; since tests run in random order, it's likely to happen
-        TestData.log.debug("TestData.truncate was called, but data was not loaded. Loading data before truncate to preserve the transaction save point ordering")
+        TestData.log.debug("TestData.uses_clean_slate was called, but data was not loaded. Loading data before truncate to preserve the transaction save point ordering")
         load
       end
 

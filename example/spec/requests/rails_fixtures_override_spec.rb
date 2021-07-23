@@ -6,11 +6,7 @@ RSpec.describe "FixtureFreeTestData", type: :request do
   fixtures :boops
 
   before(:each) do
-    TestData.load
-  end
-
-  after(:each) do
-    TestData.rollback
+    TestData.uses_test_data
   end
 
   it "has 15 boops in the test_data" do
@@ -22,7 +18,7 @@ RSpec.describe "FixturesUsingTest", type: :request do
   fixtures :boops
 
   before(:each) do
-    TestData.load_rails_fixtures(self)
+    TestData.uses_rails_fixtures(self)
   end
 
   it "has_fixture_boops" do
@@ -35,8 +31,8 @@ RSpec.describe "FixturesUsingTest", type: :request do
   end
 
   it "even_explicitly_loading_test_data_will_truncate_and_then_load_fixtures" do
-    TestData.load
-    TestData.load_rails_fixtures(self)
+    TestData.uses_test_data
+    TestData.uses_rails_fixtures(self)
 
     expect(Boop.count).to eq(2)
   end
@@ -51,13 +47,9 @@ RSpec.describe "FixturesUsingTest", type: :request do
     expect(Boop.find(boop.id).created_at.to_date).to eq(a_year_ago)
 
     # Now after rollback
-    TestData.rollback(:after_load_rails_fixtures)
+    TestData.uses_rails_fixtures(self)
 
     expect(Boop.find(boop.id).created_at.to_date).to eq(original_created_on)
-  end
-
-  after(:each) do
-    TestData.rollback(:after_load_rails_fixtures)
   end
 end
 
@@ -65,34 +57,28 @@ RSpec.describe "SomeFixturesAndSomeTestDataInOneClassTest", type: :request do
   fixtures :all
 
   it "fixtures_work" do
-    TestData.load_rails_fixtures(self)
+    TestData.uses_rails_fixtures(self)
 
     expect(boops(:boop_1).updated_at.to_date).to eq(Date.civil(2020, 1, 1))
     expect(pants(:pant_1).brand).to eq("Levi")
-
-    TestData.rollback(:after_load_rails_fixtures)
   end
 
   it "test_that_rewinds_to_test_data" do
-    TestData.load
+    TestData.uses_test_data
 
     expect(Boop.count).to eq(15)
-
-    TestData.rollback
   end
 
   it "that_rewinds_to_the_very_start" do
-    TestData.rollback(:before_data_load)
+    TestData.uninitialize
 
     expect(Boop.count).to eq(0)
   end
 
   it "fixtures_get_reloaded_because_cache_is_cleared" do
-    TestData.load_rails_fixtures(self)
+    TestData.uses_rails_fixtures(self)
 
     expect(boops(:boop_2).updated_at.to_date).to eq(Date.civil(2019, 1, 1))
     expect(pants(:pant_2).brand).to eq("Wrangler")
-
-    TestData.rollback(:after_load_rails_fixtures)
   end
 end

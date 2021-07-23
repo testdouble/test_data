@@ -1,5 +1,16 @@
 # unreleased
 
+- Remove or rename a bunch of APIs that aren't quite necessary and leak too much
+  implementation, requiring too much cognitive load for users.
+  - Remove config.use_transactional_data_loader
+  - Remove TestData.rollback
+  - Change TestData.load to TestData.uses_test_data and make it transaction-only
+  - Change TestData.truncate to TestData.uses_clean_slate and make it
+    transaction-only
+  - Change TestData.load_rails_fixtures to TestData.uses_rails_fixtures and make
+    it transaction-only
+  - Add TestData.insert_test_data_dump, which will blindly insert the test SQL
+    dump of test data without any transaction management
 - [#2](https://github.com/testdouble/test_data/issues/2) - Work around
   hard-coded environment names when initializing test_data environment secrets
 

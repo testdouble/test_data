@@ -2,11 +2,7 @@ require "rails_helper"
 
 RSpec.configure do |config|
   config.before(:each) do
-    TestData.load
-  end
-
-  config.after(:each) do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end
 

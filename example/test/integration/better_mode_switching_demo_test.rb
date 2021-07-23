@@ -8,19 +8,11 @@ class ActiveSupport::TestCase
       include FactoryBot::Syntax::Methods
 
       setup do
-        TestData.truncate
-      end
-
-      teardown do
-        TestData.rollback(:after_data_truncate)
+        TestData.uses_clean_slate
       end
     when :test_data
       setup do
-        TestData.load
-      end
-
-      teardown do
-        TestData.rollback
+        TestData.uses_test_data
       end
     end
   end

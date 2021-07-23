@@ -1,29 +1,19 @@
 require "test_helper"
 
 class ModeSwitchingTestCase < ActiveSupport::TestCase
+  self.use_transactional_tests = false
+
   def self.test_data_mode(mode)
     if mode == :factory_bot
       require "factory_bot_rails"
       include FactoryBot::Syntax::Methods
 
       setup do
-        TestData.rollback(:before_data_load)
-        ActiveRecord::Base.connection.begin_transaction(joinable: false, _lazy: false)
+        TestData.uses_clean_slate
       end
-
-      teardown do
-        ActiveRecord::Base.connection.rollback_transaction
-      end
-
     elsif mode == :test_data
-      self.use_transactional_tests = false
-
       setup do
-        TestData.load
-      end
-
-      teardown do
-        TestData.rollback
+        TestData.uses_test_data
       end
     end
   end
