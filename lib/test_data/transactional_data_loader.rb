@@ -72,15 +72,15 @@ module TestData
 
     def load_custom_data(loader, **options)
       loader.validate!(**options)
+      snapshot_name = "user_#{loader.name}".to_sym
 
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       ensure_after_truncate_save_point_is_active_if_data_is_truncated!
-
-      ensure_custom_save_point_is_active_if_memo_exists!(loader.name)
+      ensure_custom_save_point_is_active_if_memo_exists!(snapshot_name)
 
       loader.load_requested(**options)
-      if save_point_active?(loader.name) && loader.loaded?(**options)
-        return rollback_to_custom_savepoint(loader.name)
+      if save_point_active?(snapshot_name) && loader.loaded?(**options)
+        return rollback_to_custom_savepoint(snapshot_name)
       end
 
       if save_point_active?(:after_data_truncate)
@@ -90,8 +90,8 @@ module TestData
       end
 
       loader.load(**options)
-      record_ar_internal_metadata_of_custom_save_point(loader.name)
-      create_save_point(loader.name)
+      record_ar_internal_metadata_of_custom_save_point(snapshot_name)
+      create_save_point(snapshot_name)
     end
 
     def rollback_to_before_data_load
