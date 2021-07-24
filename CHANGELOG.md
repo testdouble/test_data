@@ -1,7 +1,7 @@
-# unreleased
+# 0.2.0
 
-- Remove or rename a bunch of APIs that aren't quite necessary and leak too much
-  implementation, requiring too much cognitive load for users.
+- BREAKING CHANGES: Remove or rename a bunch of APIs that aren't quite necessary
+  and leak too much implementation, requiring too much cognitive load for users.
   - Remove config.use_transactional_data_loader
   - Remove TestData.rollback
   - Change TestData.load to TestData.uses_test_data and make it transaction-only

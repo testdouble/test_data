@@ -1,5 +1,9 @@
 # The `test_data` gem
 
+**HEADS UP: 0.2.0 made a whole bunch of breaking changes to the public API and
+we haven't finished rewriting the README yet. Please bear with us while we work
+through it. 🙇**
+
 `test_data` does what it says on the tin: it provides a fast & reliable system
 for managing your Rails application's test data.
 
@@ -18,9 +22,9 @@ What it does:
   files, no precarious approximations of realism: **real data created by your
   app**
 
-* Exposes a simple API for loading your test data and cleaning up between
-  tests. Common edge cases are handled seamlessly. Tests that need access to
-  your data will see it and tests that don't, won't
+* Exposes a simple API for ensuring that each of your tests will against
+  pristine data, whether the test depends on test_data, an empty database, or
+  Rails fixtures
 
 * Safeguards your tests from flaky failures and supercharges your build by
   providing a sophisticated transaction manager that isolates each test while
@@ -48,15 +52,12 @@ necessary diligence to achieve fast, isolated tests that scale with your
 application.
 
 1. [Getting Started Guide](#getting-started-guide)
-    1. [Install and initialize
-       `test_data`](#step-1-install-and-initialize-test_data)
+    1. [Install and initialize `test_data`](#step-1-install-and-initialize-test_data)
     2. [Create some test data](#step-2-create-some-test-data)
     3. [Dump your `test_data` database](#step-3-dump-your-test_data-database)
     4. [Load your data in your tests](#step-4-load-your-data-in-your-tests)
-    5. [Keeping your test data
-       up-to-date](#step-5-keeping-your-test-data-up-to-date)
-2. [Factory & Fixture Interoperability
-   Guide](#factory--fixture-interoperability-guide)
+    5. [Keeping your test data up-to-date](#step-5-keeping-your-test-data-up-to-date)
+2. [Factory & Fixture Interoperability Guide](#factory--fixture-interoperability-guide)
     * [Using `test_data` with `factory_bot`](#using-test_data-with-factory_bot)
     * [Using `test_data` with Rails fixtures](#using-test_data-with-rails-fixtures)
 3. [Rake Task Reference](#rake-task-reference)
@@ -70,15 +71,11 @@ application.
     * [test_data:drop_database](#test_datadrop_database)
 4. [API Reference](#api-reference)
     * [TestData.config](#testdataconfig)
-    * [TestData.load](#testdataload)
-    * [TestData.rollback](#testdatarollback)
-        * [TestData.rollback(:before_data_load)](#rolling-back-to-before-test-data-was-loaded)
-        * [TestData.rollback(:after_data_load)](#rolling-back-to-after-the-data-was-loaded)
-        * [TestData.rollback(:after_data_truncate)](#rolling-back-to-after-test-data-was-truncated)
-        * [TestData.rollback(:after_load_rails_fixtures)](#rolling-back-to-after-rails-fixtures-were-loaded)
-    * [TestData.truncate](#testdatatruncate)
+    * [TestData.uses_test_data](#testdatauses_test_data)
+    * [TestData.uses_clean_slate](#testdatauses_clean_slate)
     * [TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
-    * [TestData.load_rails_fixtures(self)](#testdataload_rails_fixtures)
+    * [TestData.uses_rails_fixtures(self)](#testdatauses_rails_fixtures)
+    * [TestData.insert_test_data_dump](#testdatainsert_test_data_dump)
 5. [Assumptions](#assumptions)
 6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts) (Q & A)
 7. [Code of Conduct](#code-of-conduct)
@@ -140,21 +137,29 @@ Created database 'yourappname_test_data'
 ------------
 
 (1 row)
+
+Your test_data environment and database are ready for use! You can now run
+your server (or any command) to create some test data like so:
+
+  $ RAILS_ENV=test_data bin/rails server
+
 ````
 
-The purpose of the `test_data` database is to provide a sandbox in which to
-generate test data by interacting with your app and then dumping the resulting
-state of the database so that your tests can load it later. Rather than try to
-imitate realistic data using factories and fixtures (a task which only grows
-more difficult as your models and their associations increase in complexity),
-your test data will always be realistic because your real application will have
-created it!
+The purpose of the `test_data` database is to provide a sandbox in which you
+will manually generate test data by playing aroundo with your app. Once you've
+craeted enough data to drive tests of your application, `test_data` facilitates
+dumping the resulting state of the `test_data` database so that your tests can
+load it into the `test` database. Rather than try to imitate realistic data
+using factories and fixtures (a task which only grows more difficult as your
+models and their associations increase in complexity), your test data will
+always be realistic because your real application will have created it!
 
 The database dumps are meant to be committed in git and versioned alongside your
 tests over the life of the application. Its schema & data are should be
 incrementally migrated over time, just like your production database. (As a
-happy side effect, this means your `test_data` database may help you identify
-hard-to-catch migration bugs early, before being deployed to production!)
+happy side effect of running your migrations against your test data, this means
+your `test_data` database may help you identify hard-to-catch migration bugs
+early, before being deployed to production!)
 
 ### Step 2: Create some test data
 
@@ -220,9 +225,9 @@ This will dump three files into `test/support/test_data`:
 * Non-test data (`ar_internal_metadata` and `schema_migrations` by default) in
   `non_test_data.sql`
 
-These paths can be overridden with [TestData.config](#testdataconfig) method.
-Additional details can be found in the [test_data:dump](#test_datadump)
-Rake task reference.
+You probably won't need to, but these paths can be overridden with
+[TestData.config](#testdataconfig) method. Additional details can also be found
+in the [test_data:dump](#test_datadump) Rake task reference.
 
 Once you've made your initial set of dumps, briefly inspect them and—if
 everything looks good—commit them. (And if the files are gigantic or full of
@@ -233,8 +238,8 @@ Does it feel weird to dump and commit SQL files? That's okay! It's [healthy to
 be skeptical](https://twitter.com/searls/status/860553435116187649?s=20)
 whenever you're asked to commit a generated file! Remember that the `test_data`
 environment exists only for creating your test data. Your tests will, in turn,
-load the SQL dump of your data into the familiar `test` database, and things
-will proceed just as if you'd been loading [Rails' built-in
+load the SQL dump of your data into the `test` database, and things will proceed
+just as if you'd been loading [Rails' built-in
 fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
 from a set of YAML files—the major difference being that `test_data` databases
 are generated through realistic use, whereas fixtures are defined manually in
@@ -248,92 +253,79 @@ writing tests that rely on this test data.
 To accomplish this, you'll likely want to add hooks to run before & after each
 test—first to load your test data and then to rollback any changes made by the
 test in order to clear the air for the next test. The `test_data` gem
-accomplishes this with its [TestData.load](#testdataload) and
-[TestData.rollback](#testdatarollback) methods.
+accomplishes this with its [TestData.uses_test_data](#testdatauses_test_data)
+method.
 
 If you're using (Rails' default)
 [Minitest](https://github.com/seattlerb/minitest) and want to include your test
-data with every test, you can add these hooks to `ActiveSupport::TestCase`:
+data with every test, you could load them in a `setup` hook in
+`ActiveSupport::TestCase`:
 
 ```ruby
 class ActiveSupport::TestCase
   setup do
-    TestData.load
-  end
-
-  teardown do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end
 ```
 
 If you use [RSpec](https://rspec.info), you can accomplish the same thing with
-global `before(:each)` and `after(:each)` hooks in your `rails_helper.rb` file:
+global `before(:each)` hook in your `rails_helper.rb` file:
 
 ```ruby
 RSpec.configure do |config|
   config.before(:each) do
-    TestData.load
-  end
-
-  config.after(:each) do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end
 ```
 
 That should be all you need to have access to your test data in each of your
 tests! Your tests will also benefit from the speed and data integrity that comes
-with wrapping each test in an always-rolled-back transaction. For more
-information on how all this works, see the [API reference](#api-reference). If
-your test suite is already using fixtures or factories and the above hooks just
-broke everything, check out our [interoperability
+with covering each test's behavior in an always-rolled-back transaction. For
+more information on how all this works, see the [API reference](#api-reference).
+If your test suite is already using fixtures or factories and the above hooks
+just broke everything, check out our [interoperability
 guide](#factory--fixture-interoperability-guide) for help.
 
 If you _don't_ want all of your Rails-aware tests to see this test data (suppose
-you have existing tests that use factories instead), you probably
-want to use [TestData.truncate](#testdatatruncate) to clear data generated by
-this gem out before they run. You might do that by defining two test types:
+you have existing tests that use factories instead), you probably want to use
+[TestData.uses_clean_slate](#testdatauses_clean_slate) to clear data generated
+by this gem out before they run. One way to do that would be to define two test
+types:
 
 ```ruby
 # Tests using data created by `test_data`
 class TestDataTestCase < ActiveSupport::TestCase
   setup do
-    TestData.load
-  end
-
-  teardown do
-    TestData.rollback
+    TestData.uses_test_data
   end
 end
 
-# Tests that don't need a shared data source
-class SomeModelTestCase < ActiveSupport::TestCase
+# Tests that don't rely on test_data or Rails fixtures:
+class CleanSlateTestCase < ActiveSupport::TestCase
   setup do
-    TestData.truncate
-  end
-
-  def test_some_model_does_stuff
-    some_model = SomeModel.create!
-
-    result = some_model.does_stuff
-
-    assert_equal :cool_stuff, result
-  end
-
-  teardown do
-    TestData.rollback(:after_data_truncate)
+    TestData.uses_clean_slate
   end
 end
-
 ```
 
 ### Step 5: Keeping your test data up-to-date
 
-Because your app relies on its tests and your tests rely on their test data,
-your test data needs to be maintained for the entire life of your application.
-Fortunately, and because production databases need the same thing, we already
-have a fantastic tool for the job: [Rails
+Your app relies on its tests and your tests rely on their test data. This
+creates a bit of a paradox: creating & maintaining test data is _literally_ a
+tertiary concern but simultaneously an inescapable responsibility that will live
+with you for the life of your application. That's true whether you use this gem,
+`factory_bot`, Rails fixtures, or persist your test data manually inside each
+and every test.
+
+But `test_data` stores your data as SQL, as opposed to Ruby or YAML. So
+providing a straightforward way to maintain it as your application grows and
+your schema evolves is a going concern of this gem.
+
+Fortunately, because your `test_data` database needs to be maintained for the
+entire life of your application and because production databases need the same
+thing, we already have a fantastic tool for the job: [Rails
 migrations](https://guides.rubyonrails.org/active_record_migrations.html). If
 your migrations are resilient enough for your production data, they should also
 be able to keep your `test_data` database up-to-date.
@@ -343,7 +335,8 @@ necessitates the creation of more test data, you'll need to update your test
 data. Here's a rough outline to updating your `test_data` database:
 
 1. If your local `test_data` database is out-of-date with your latest SQL dump
-   files, drop it with `rake test_data:drop_database`
+   files (i.e. if someone has updated the SQL dump and your local Postgres
+   database is out of date), drop it with `rake test_data:drop_database`
 
 2. Load your schema & data into the `test_data` database with `rake
    test_data:load`
@@ -402,20 +395,23 @@ This section will document some thoughts and strategies for introducing
 
 Depending on the assumptions your tests make about the state of the database
 before you've loaded any factories, it's possible that everything will "just
-work" after adding `TestData.load` in a before-each hook and `TestData.rollback`
-in an after-each hook (as shown in the [setup
-guide](#step-4-load-your-data-in-your-tests)). So by all means, try running your
-suite after following the initial setup guide and see if the suite just passes.
+work" after adding `TestData.uses_test_data` in a before-each hook (as shown in
+the [setup guide](#step-4-load-your-data-in-your-tests)). So by all means, try
+running your suite after following the initial setup guide and see if the suite
+just passes.
 
-If you find that your test suite is failing after adding `TestData.load` to your
-setup, don't panic! It probably means that you have test data and factory
-invocations that are, when combined, violating unique validations or database
-constraints. Depending on your situation (e.g. the size of your test suite, how
-well you understand the intentions of older tests) you might try to resolve
-these errors one-by-one, usually by updating the offending factories or
-editing your `test_data` database to ensure they steer clear of one another.
-This can be tedious, however, and can undermine the completeness of either data
-source in the absence of the other.
+If you find that your test suite is failing after adding
+`TestData.uses_test_data` to your setup, don't panic! It probably means that you
+have test data and factory invocations that are, when combined, violating unique
+validations or database constraints. Depending on your situation (e.g. the size
+of your test suite, how well you understand the intentions of older tests) you
+might try to resolve these errors one-by-one—usually by updating the offending
+factories or editing your `test_data` database to ensure they steer clear of one
+another. Care should be taken to preserve the conceptual encapsulation of each
+test, however, as naively squashing errors can introduce coupling between your
+factories and your `test_data` database that inadvertently tangles the two
+together (where both test data sources become necessary to interact with the
+system).
 
 If your tests are failing after introducing `test_data` and it's not desirable
 or feasible to work through the individual failures, you can accomplish a clean
