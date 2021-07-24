@@ -1,30 +1,5 @@
 module TestData
-  def self.uninitialize
-    @data_loader ||= TransactionalDataLoader.new
-    @data_loader.rollback_to_before_data_load
-  end
-
-  def self.uses_test_data
-    @data_loader ||= TransactionalDataLoader.new
-    @data_loader.load
-  end
-
-  def self.uses_clean_slate
-    @data_loader ||= TransactionalDataLoader.new
-    @data_loader.truncate
-  end
-
-  def self.uses_rails_fixtures(test_instance)
-    @rails_fixtures_loader ||= CustomLoaders::RailsFixtures.new
-    @data_loader ||= TransactionalDataLoader.new
-    @data_loader.load_custom_data(@rails_fixtures_loader, test_instance: test_instance)
-  end
-
-  def self.insert_test_data_dump
-    InsertsTestData.new.call
-  end
-
-  class TransactionalDataLoader
+  class Manager
     def initialize
       @inserts_test_data = InsertsTestData.new
       @truncates_test_data = TruncatesTestData.new
@@ -102,6 +77,8 @@ module TestData
       end
     end
 
+    private
+
     def rollback_to_after_data_load
       if save_point_active?(:after_data_load)
         rollback_save_point(:after_data_load)
@@ -122,8 +99,6 @@ module TestData
         create_save_point(name)
       end
     end
-
-    private
 
     def connection
       ActiveRecord::Base.connection
