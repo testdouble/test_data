@@ -15,13 +15,9 @@ module TestData
   end
 
   def self.uses_rails_fixtures(test_instance)
-    if !test_instance.respond_to?(:setup_fixtures)
-      raise Error.new("'TestData.uses_rails_fixtures(self)' must be passed a test instance that has had ActiveRecord::TestFixtures mixed-in (e.g. `TestData.uses_rails_fixtures(self)` in an ActiveSupport::TestCase `setup` block), but the provided argument does not respond to 'setup_fixtures'")
-    elsif !test_instance.respond_to?(:__test_data_gem_setup_fixtures)
-      raise Error.new("'TestData.uses_rails_fixtures(self)' depends on Rails' default fixture-loading behavior being disabled by calling 'TestData.prevent_rails_fixtures_from_loading_automatically!' as early as possible (e.g. near the top of your test_helper.rb), but it looks like it was never called.")
-    end
+    @rails_fixtures_loader ||= CustomLoaders::RailsFixtures.new
     @data_loader ||= TransactionalDataLoader.new
-    @data_loader.load_rails_fixtures(test_instance)
+    @data_loader.load_custom_data(@rails_fixtures_loader, test_instance: test_instance)
   end
 
   def self.insert_test_data_dump
@@ -35,7 +31,6 @@ module TestData
       @config = TestData.config
       @statistics = TestData.statistics
       @save_points = []
-      @already_loaded_rails_fixtures = {}
     end
 
     def load
@@ -46,35 +41,6 @@ module TestData
       @inserts_test_data.call
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
-    end
-
-    def rollback_to_before_data_load
-      if save_point_active?(:before_data_load)
-        rollback_save_point(:before_data_load)
-        # No need to recreate the save point
-        # (TestData.uses_test_data will if called)
-      end
-    end
-
-    def rollback_to_after_data_load
-      if save_point_active?(:after_data_load)
-        rollback_save_point(:after_data_load)
-        create_save_point(:after_data_load)
-      end
-    end
-
-    def rollback_to_after_data_truncate
-      if save_point_active?(:after_data_truncate)
-        rollback_save_point(:after_data_truncate)
-        create_save_point(:after_data_truncate)
-      end
-    end
-
-    def rollback_to_after_load_rails_fixtures
-      if save_point_active?(:after_load_rails_fixtures)
-        rollback_save_point(:after_load_rails_fixtures)
-        create_save_point(:after_load_rails_fixtures)
-      end
     end
 
     def truncate
@@ -104,14 +70,18 @@ module TestData
       create_save_point(:after_data_truncate)
     end
 
-    # logic is beat-for-beat the same as #truncate just one step deeper down
-    # this rabbit hole…
-    def load_rails_fixtures(test_instance)
+    def load_custom_data(loader, **options)
+      loader.validate!(**options)
+
       ensure_after_load_save_point_is_active_if_data_is_loaded!
       ensure_after_truncate_save_point_is_active_if_data_is_truncated!
-      ensure_after_load_rails_fixtures_save_point_is_active_if_fixtures_are_loaded!
-      reset_rails_fixture_caches(test_instance)
-      return rollback_to_after_load_rails_fixtures if save_point_active?(:after_load_rails_fixtures) && @already_loaded_rails_fixtures[test_instance.class].present?
+
+      ensure_custom_save_point_is_active_if_memo_exists!(loader.name)
+
+      loader.load_requested(**options)
+      if save_point_active?(loader.name) && loader.loaded?(**options)
+        return rollback_to_custom_savepoint(loader.name)
+      end
 
       if save_point_active?(:after_data_truncate)
         rollback_to_after_data_truncate
@@ -119,20 +89,41 @@ module TestData
         truncate
       end
 
-      execute_load_rails_fixtures(test_instance)
-      record_ar_internal_metadata_that_rails_fixtures_are_loaded
-      create_save_point(:after_load_rails_fixtures)
+      loader.load(**options)
+      record_ar_internal_metadata_of_custom_save_point(loader.name)
+      create_save_point(loader.name)
+    end
+
+    def rollback_to_before_data_load
+      if save_point_active?(:before_data_load)
+        rollback_save_point(:before_data_load)
+        # No need to recreate the save point
+        # (TestData.uses_test_data will if called)
+      end
+    end
+
+    def rollback_to_after_data_load
+      if save_point_active?(:after_data_load)
+        rollback_save_point(:after_data_load)
+        create_save_point(:after_data_load)
+      end
+    end
+
+    def rollback_to_after_data_truncate
+      if save_point_active?(:after_data_truncate)
+        rollback_save_point(:after_data_truncate)
+        create_save_point(:after_data_truncate)
+      end
+    end
+
+    def rollback_to_custom_savepoint(name)
+      if save_point_active?(name)
+        rollback_save_point(name)
+        create_save_point(name)
+      end
     end
 
     private
-
-    def execute_load_rails_fixtures(test_instance)
-      test_instance.pre_loaded_fixtures = false
-      test_instance.use_transactional_tests = false
-      test_instance.__test_data_gem_setup_fixtures
-      @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
-      @statistics.count_load_rails_fixtures!
-    end
 
     def connection
       ActiveRecord::Base.connection
@@ -176,29 +167,23 @@ module TestData
       ActiveRecord::InternalMetadata.find_by(key: "test_data:truncated")&.value == "true"
     end
 
-    def ensure_after_load_rails_fixtures_save_point_is_active_if_fixtures_are_loaded!
-      if !save_point_active?(:after_load_rails_fixtures) && ar_internal_metadata_shows_rails_fixtures_are_loaded?
-        TestData.log.debug "Rails Fixtures appears to have been loaded by test_data, but the :after_load_rails_fixtures save point was rolled back (and not by this gem). Recreating the :after_load_rails_fixtures save point"
-        create_save_point(:after_load_rails_fixtures)
+    def ensure_custom_save_point_is_active_if_memo_exists!(name)
+      if !save_point_active?(name) && ar_internal_metadata_shows_custom_operation_was_persisted?(name)
+        TestData.log.debug "#{name} appears to have been loaded by test_data, but the #{name} save point was rolled back (and not by this gem). Recreating the #{name} save point"
+        create_save_point(name)
       end
     end
 
-    def record_ar_internal_metadata_that_rails_fixtures_are_loaded
-      if ar_internal_metadata_shows_rails_fixtures_are_loaded?
-        TestData.log.warn "Attempted to record that test_data had loaded your Rails fixtures in ar_internal_metadata, but record already existed. Perhaps a previous test run committed the loading of your Rails fixtures?"
+    def ar_internal_metadata_shows_custom_operation_was_persisted?(name)
+      ActiveRecord::InternalMetadata.find_by(key: "test_data:#{name}")&.value == "true"
+    end
+
+    def record_ar_internal_metadata_of_custom_save_point(name)
+      if ar_internal_metadata_shows_custom_operation_was_persisted?(name)
+        TestData.log.warn "Attempted to record that test_data had loaded #{name} in ar_internal_metadata, but record already existed. Perhaps a previous test run committed it?"
       else
-        ActiveRecord::InternalMetadata.create!(key: "test_data:rails_fixtures_loaded", value: "true")
+        ActiveRecord::InternalMetadata.create!(key: "test_data:#{name}", value: "true")
       end
-    end
-
-    def ar_internal_metadata_shows_rails_fixtures_are_loaded?
-      ActiveRecord::InternalMetadata.find_by(key: "test_data:rails_fixtures_loaded")&.value == "true"
-    end
-
-    def reset_rails_fixture_caches(test_instance)
-      ActiveRecord::FixtureSet.reset_cache
-      test_instance.instance_variable_set(:@loaded_fixtures, @already_loaded_rails_fixtures[test_instance.class])
-      test_instance.instance_variable_set(:@fixture_cache, {})
     end
 
     def save_point_active?(name)
