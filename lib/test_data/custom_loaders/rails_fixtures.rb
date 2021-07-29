@@ -2,6 +2,7 @@ module TestData
   module CustomLoaders
     class RailsFixtures < AbstractBase
       def initialize
+        @config = TestData.config
         @statistics = TestData.statistics
         @already_loaded_rails_fixtures = {}
       end
@@ -34,6 +35,7 @@ module TestData
         test_instance.__test_data_gem_setup_fixtures
         @already_loaded_rails_fixtures[test_instance.class] = test_instance.instance_variable_get(:@loaded_fixtures)
         @statistics.count_load_rails_fixtures!
+        @config.after_rails_fixture_load_hook.call
       end
     end
   end

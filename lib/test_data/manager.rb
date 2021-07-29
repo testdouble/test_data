@@ -14,6 +14,7 @@ module TestData
 
       create_save_point(:before_data_load)
       @inserts_test_data.call
+      @config.after_test_data_load_hook.call
       record_ar_internal_metadata_that_test_data_is_loaded
       create_save_point(:after_data_load)
     end
@@ -41,6 +42,7 @@ module TestData
       end
 
       @truncates_test_data.call
+      @config.after_test_data_truncate_hook.call
       record_ar_internal_metadata_that_test_data_is_truncated
       create_save_point(:after_data_truncate)
     end

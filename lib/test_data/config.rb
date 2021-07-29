@@ -41,7 +41,8 @@ module TestData
       TestData.log.level = level
     end
 
-    attr_reader :pwd, :cable_yaml_path, :database_yaml_path, :secrets_yaml_path
+    attr_reader :pwd, :cable_yaml_path, :database_yaml_path, :secrets_yaml_path,
+      :after_test_data_load_hook, :after_test_data_truncate_hook, :after_rails_fixture_load_hook
 
     def self.full_path_reader(*relative_path_readers)
       relative_path_readers.each do |relative_path_reader|
@@ -64,6 +65,33 @@ module TestData
       @non_test_data_tables = []
       @dont_dump_these_tables = []
       @truncate_these_test_data_tables = nil
+      @after_test_data_load_hook = -> {}
+      @after_test_data_truncate_hook = -> {}
+      @after_rails_fixture_load_hook = -> {}
+    end
+
+    def after_test_data_load(callable = nil, &blk)
+      hook = callable || blk
+      if !hook.respond_to?(:call)
+        raise Error.new("after_test_data_load must be passed a callable (e.g. a Proc) or called with a block")
+      end
+      @after_test_data_load_hook = hook
+    end
+
+    def after_test_data_truncate(callable = nil, &blk)
+      hook = callable || blk
+      if !hook.respond_to?(:call)
+        raise Error.new("after_test_data_truncate must be passed a callable (e.g. a Proc) or called with a block")
+      end
+      @after_test_data_truncate_hook = hook
+    end
+
+    def after_rails_fixture_load(callable = nil, &blk)
+      hook = callable || blk
+      if !hook.respond_to?(:call)
+        raise Error.new("after_rails_fixture_load must be passed a callable (e.g. a Proc) or called with a block")
+      end
+      @after_rails_fixture_load_hook = hook
     end
 
     def database_yaml

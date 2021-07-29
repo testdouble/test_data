@@ -52,8 +52,7 @@ task "test_data:initialize" => ["test_data:verify_config", :environment] do
   end
 
   TestData.log.info <<~MSG
-    Your test_data environment and database are ready for use! You can now run
-    your server (or any command) to create some test data like so:
+    Your test_data environment and database are ready for use! You can now run your server (or any command) to create some test data like so:
 
       $ RAILS_ENV=test_data bin/rails server
 
@@ -83,7 +82,7 @@ task "test_data:load" => ["test_data:verify_config", :environment] do
   TestData::LoadsDatabaseDumps.new.call
 
   if ActiveRecord::Base.connection.migration_context.needs_migration?
-    TestData.log.warn "There are pending migrations for database '#{TestData.config.database_name}'. To run them, run:\n\n  RAILS_ENV=test_data bin/rake db:migrate\n\n"
+    TestData.log.warn "There are pending migrations for database '#{TestData.config.database_name}'. To run them, run:\n\n  $ RAILS_ENV=test_data bin/rake db:migrate\n\n"
   end
 end
 

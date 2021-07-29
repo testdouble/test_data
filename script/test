@@ -83,17 +83,29 @@ cp ../test/fixtures/20210423190737_add_foreign_keys.rb db/migrate/
 cp ../test/fixtures/boop_with_other_boops.rb app/models/boop.rb
 RAILS_ENV=test_data bin/rake db:migrate
 bin/rake test_data:dump
-bin/rake db:migrate
-bin/rake db:test:prepare
+bin/rake db:migrate db:test:prepare
 bin/rails test test/integration/boops_that_boop_boops_test.rb
 
 # Make sure it loads cleanly again
 bin/rake test_data:drop_database
-if [ ! bin/rake test_data:load | grep -q "ERROR" ]; then
-  echo "Running test_data:load after adding FK constraints led to errors"
-  exit 1
-fi
+bin/rake test_data:load
 bin/rails test test/integration/boops_that_boop_boops_test.rb
+
+# Test all the after hooks!
+cp ../test/fixtures/20210729130542_add_materialized_meta_boop_view.rb db/migrate/
+cp ../test/fixtures/meta_boop.rb app/models/meta_boop.rb
+# Gsub config file to switch to structure.sql b/c materialized view
+ruby -e '
+  path = "config/application.rb"
+  IO.write(path, File.open(path) { |f|
+    f.read.gsub("# config.active_record.schema_format = :sql", "config.active_record.schema_format = :sql")
+  })
+'
+rm db/schema.rb
+bin/rake db:migrate db:test:prepare
+RAILS_ENV=test_data bin/rake db:migrate
+bin/rake test_data:dump
+bin/rails test test/integration/test_data_hooks_test.rb
 
 # Cleanup
 cd ..

@@ -719,6 +719,18 @@ object (similar to `Rails.application.config`):
 
 ```ruby
 TestData.config do |config|
+  # Hook run after test data is loaded by `TestData.uses_test_data`,
+  #   but before a savepoint is taken
+  # config.after_test_data_load { }
+
+  # Hook run after test data is truncated by `TestData.uses_clean_slate`,
+  #   but before a savepoint is taken
+  # config.after_test_data_truncate { }
+
+  # Hook run after test data is truncated by `TestData.uses_rails_fixtures`,
+  #   but before a savepoint is taken
+  # config.after_rails_fixture_load { }
+
   # Where to store SQL dumps of the test_data database schema
   # config.schema_dump_path = "test/support/test_data/schema.sql"
 
