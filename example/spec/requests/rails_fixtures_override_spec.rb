@@ -2,15 +2,37 @@ require "rails_helper"
 
 TestData.prevent_rails_fixtures_from_loading_automatically!
 
+module TestDataModes
+  def uses(mode)
+    case mode
+    when :clean_slate
+      before(:each) { TestData.uses_clean_slate }
+    when :test_data
+      before(:each) { TestData.uses_test_data }
+    else
+      raise "Invalid test data mode: #{mode}"
+    end
+  end
+end
+
+RSpec.configure do |config|
+  config.extend(TestDataModes)
+end
+
 RSpec.describe "FixtureFreeTestData", type: :request do
   fixtures :boops
 
-  before(:each) do
-    TestData.uses_test_data
-  end
-
+  uses :test_data
   it "has 15 boops in the test_data" do
     expect(Boop.count).to eq(15)
+  end
+end
+
+RSpec.describe "Clean Slate" do
+  uses :clean_slate
+
+  it "has no boops" do
+    expect(Boop.count).to eq(0)
   end
 end
 
