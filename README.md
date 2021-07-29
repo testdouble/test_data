@@ -34,7 +34,8 @@ be open to the idea that [there might be a better way](
 #but-we-use-and-like-factory_bot-and-so-i-am-inclined-to-dislike-everything-about-this-gem).
 
 _[Full disclosure: because the gem is still brand new, it makes a number of
-[assumptions](#assumptions) and may not work for every project just yet.]_
+[assumptions](#assumptions)—chief among them being that **Postgres & Rails 6+
+are required**—so it may not work for every project just yet.]_
 
 ## Documentation
 
@@ -74,6 +75,18 @@ application.
     * [TestData.insert_test_data_dump](#testdatainsert_test_data_dump)
 5. [Assumptions](#assumptions)
 6. [Fears, Uncertainties, and Doubts](#fears-uncertainties-and-doubts) (Q & A)
+    * [But we're already happy with
+      factory_bot!](#but-we-use-and-like-factory_bot-and-so-i-am-inclined-to-dislike-everything-about-this-gem)
+    * [How will we handle merge conflicts in the schema
+      dumps?](#how-will-i-handle-merge-conflicts-in-these-sql-files-if-i-have-lots-of-people-working-on-lots-of-feature-branches-all-adding-to-the-test_data-database-dumps)
+    * [Why can't I manage different SQL dumps for different
+      scenarios?](#why-cant-i-save-multiple-database-dumps-to-cover-different-scenarios)
+    * [These SQL dumps are way too large to commit to
+      git!](#are-you-sure-i-should-commit-these-sql-dumps-theyre-way-too-big)
+    * [Tests shouldn't rely on shared test data if they don't need
+      to](#tests-shouldnt-use-shared-test-data-they-should-instantiate-the-objects-they-need)
+    * [My tests aren't as fast as they should
+      be](#im-worried-my-tests-arent-as-fast-as-they-should-be)
 7. [Code of Conduct](#code-of-conduct)
 8. [Changelog](/CHANGELOG.md)
 9. [MIT License](/LICENSE.txt)
@@ -770,14 +783,20 @@ As described in this README's [fixture interop
 guide](#using-test_data-with-rails-fixtures), `TestData.uses_rails_fixtures`
 will load your app's [Rails
 fixtures](https://guides.rubyonrails.org/testing.html#the-low-down-on-fixtures)
-by intercepting Rails' built-in fixture-loading code. Because the method depends
-on Rails' fixture caching mechanism, it must be passed an instance of the
-running test class (e.g. `TestData.uses_rails_fixtures(self)`)
+by intercepting Rails' built-in fixture-loading code. As with the other "uses"
+methods, you'll likely want to call it in a before-each hook before any test
+that needs access to your Rails fixtures.
 
-Using this feature requires that you've first invoked
-[TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
-to override Rails' default behavior before any of your tests have loaded or
-started running
+There are two additional things to keep in mind if using this method:
+
+1. Using this feature requires that you've first invoked
+   [TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
+   to override Rails' default behavior before any of your tests have loaded or
+   started running
+
+2. Because the method depends on Rails' fixture caching mechanism, it must be
+   passed an instance of the running test class (e.g.
+   `TestData.uses_rails_fixtures(self)`)
 
 Under the hood, this method effectively ensures a clean slate the same way
 `TestData.uses_clean_slate` does, except that after creating the truncation
@@ -846,12 +865,11 @@ yet. Here are some existing assumptions and limitations:
 
 If you use `factory_bot` and all of these are true:
 
-* Your integration tests are super fast and not getting significantly slower
+* Your integration tests are super fast and are not getting significantly slower
   over time
 
-* Innocuous changes to factories rarely result in unrelated test failures
-  that—rather than indicating a bug in the production code—instead require that
-  each of those tests be analyzed & updated to get them passing again
+* Minor changes to existing factories rarely result in test failures that
+  require unrelated tests to be read & updated to get them passing again
 
 * The number of associated records generated between your most-used factories
   are representative of production data, as opposed to generating a sprawling
@@ -867,16 +885,16 @@ If you use `factory_bot` and all of these are true:
   confidence-eroding nested factories with names like `:user`, `:basic_user`,
   `:lite_user`, and `:plain_user_no_associations_allowed`
 
-If none of these things are true, then congratulations! You are using
-`factory_bot` with great success! Unfortunately, in our experience, this outcome
+If none of these things are true, then congratulations! You are probably using
+`factory_bot` to great effect! Unfortunately, in our experience, this outcome
 is exceedingly rare, especially for large and long-lived applications.
 
-However, if any of the above issues resonate with your experience using
-`factory_bot`: these are the sorts of failure modes the `test_data` gem was
-designed to address. We hope you'll consider trying it with an open mind. At the
-same time, we acknowledge that large test suites can't be rewritten and migrated
-to a different source of test data overnight—nor should they be! See our notes
-on [migrating to `test_data`
+However, if you'd answer "no" to any of the above questions, just know that
+these are the sorts of failure modes the `test_data` gem was designed to
+avoid—and we hope you'll consider trying it with an open mind. At the same time,
+we acknowledge that large test suites can't be rewritten and migrated to a
+different source of test data overnight—nor should they be! See our notes on
+[migrating to `test_data`
 incrementally](#factory--fixture-interoperability-guide)
 
 ### How will I handle merge conflicts in these SQL files if I have lots of people working on lots of feature branches all adding to the `test_data` database dumps?
@@ -896,13 +914,13 @@ this risk. The reason that the dumps are stored as plain SQL (aside from the
 fact that git's text compression is very good) is to make merge conflicts with
 other branches feasible, if not entirely painless.
 
-However, if your app is in the very initial stages of development and you're
-making breaking changes to your schema very frequently, our best advice is to
-hold off a bit on writing _any_ integration tests that depend on shared sources
-of test data, as they'll be more likely to frustrate your ability to rapidly
-iterate than detect bugs. Once you you have a reasonably stable feature working
-end-to-end, that's a good moment to start adding integration tests (and thus
-pulling in a test data gem like this one to help you).
+However, if your app is in the very initial stages of development or you're
+otherwise making breaking changes to your schema and data very frequently, our
+best advice is to hold off a bit on writing _any_ integration tests that depend
+on shared sources of test data (regardless of tool), as they'll be more likely
+to frustrate your ability to rapidly iterate than detect bugs. Once you you have
+a reasonably stable feature working end-to-end, that's a good moment to start
+adding integration tests—and perhaps pulling in a gem like this one to help you.
 
 ### Why can't I save multiple database dumps to cover different scenarios?
 
@@ -918,8 +936,7 @@ By having a single `test_data` database that grows up with your application just
 like `production` does—with both having their schemas and data migrated
 incrementally over time—your integration tests that depend on `test_data` will
 have an early opportunity to catch bugs that otherwise wouldn't be found until
-they were deployed into a long-lived environment like staging or (gasp!)
-production itself.
+they were deployed into a long-lived staging or (gasp!) production environment.
 
 ### Are you sure I should commit these SQL dumps? They're way too big!
 
@@ -930,16 +947,17 @@ cause:
    resetting (or rolling back) your changes and making another attempt at
    generating a more minimal set of test data
 
-2. If certain tables have a lot of records but aren't very relevant to your
-   tests (e.g. audit logs), you might consider either of these options:
+2. If some records persisted by your application aren't very relevant to your
+   tests, you might consider either of these options:
 
-    * Add those tables to the `config.non_test_data_tables` configuration array,
-      where they'd still be committed to git, but won't loaded by your tests
+    * If certain tables are necessary for running the app but aren't needed by
+      your tests, you can add them to the `config.non_test_data_tables`
+      configuration array. They'll still be committed to git, but won't loaded
+      by your tests
 
-    * Exclude data from those tables entirely by adding them to the
-      `config.dont_dump_these_tables` array. (Note that `rake test_data:load`
-      won't be able to restore these tables into your `test_data` environment,
-      so if the data is needed for the app to operate, you'll need to dump them)
+    * If the certain tables are not needed by your application or by your tests
+      (e.g. audit logs), add them to the `config.dont_dump_these_tables` array,
+      and they won't be persisted by `rake test_data:dump`
 
 3. If the dumps are _necessarily_ really big (some apps are complex!), consider
    looking into [git-lfs](https://git-lfs.github.com) for tracking them without
@@ -962,7 +980,7 @@ test data loaded from this gem or any other:
 def test_exclude_cancelled_orders
   good_order = Order.new
   bad_order = Order.new(cancelled: true)
-  user = User.create!(orders: good_order, bad_order)
+  user = User.create!(orders: [good_order, bad_order])
 
   result = user.active_orders
 
@@ -971,17 +989,18 @@ def test_exclude_cancelled_orders
 end
 ```
 
-This test is simple, self-contained, clearly denotes
-[arrange-act-assert](https://github.com/testdouble/contributing-tests/wiki/Arrange-Act-Assert),
-and (most importantly) will only fail if the functionality stops working.
-Maximizing the number of tests that can be written expressively and succinctly
-without the aid of shared test data is a laudable goal that more teams should
-embrace.
+This test is simple, self-contained, clearly demarcates the
+[arrange-act-assert](https://github.com/testdouble/contributing-tests/wiki/Arrange-Act-Assert)
+phases, and (most importantly) will only fail if the functionality stops
+working. Maximizing the number of tests that can be written expressively and
+succinctly without the aid of shared test data is a laudable goal that more
+teams should embrace.
 
 However, what if the code you're writing doesn't need 3 records in the database,
-but 30? Writing that much test setup would be painstaking and—despite being
-fully-encapsulated—hard for readers to understand what's going on. At that
-point, you have two options:
+but 30? Writing that much test setup would be painstaking, despite being
+fully-encapsulated. Long test setup is harder for others to read and understand.
+And because that setup depends on more of your system's code, it will have more
+reasons to break as your codebase changes. At that point, you have two options:
 
 1. Critically validate your design: why is it so hard to set up? Does it
    _really_ require so much persisted data to exercise this behavior? Would a
@@ -992,8 +1011,8 @@ point, you have two options:
    [subject](https://github.com/testdouble/contributing-tests/wiki/Subject)
    instead of loading everything from the database? When automated testing is
    saved for the very end of a feature's development, it can feel too costly to
-   reexamine design decisions like this, but it's valuable feedback all the
-   same. *Easy to test code is easy to use code*
+   reexamine design decisions like this, but it can be valuable to consider all
+   the same. *Easy to test code is easy to use code*
 
 2. If the complex setup is a necessary reality of the situation that your app
    needs to handle (and it often will be!), then having _some_ kind of shared
@@ -1002,16 +1021,17 @@ point, you have two options:
 
 As a result, there is no one-size-fits-all approach. Straightforward behavior
 that can be invoked with a clear, concise test has no reason to be coupled to a
-shared source of test data. Subtle behavior that requires lots of
-carefully-arranged data would see its tests grow unwieldy without something to
-help populate that data. So both kinds of test clearly have their place.
+shared source of test data. Meanwhile, tests of more complex behaviors that
+require lots of carefully-arranged data might be unmaintainable without a shared
+source of test data to lean on. So both kinds of test clearly have their place.
 
 But this is a pretty nuanced discussion that can be hard to keep in mind when
 under deadline pressure or on a large team where building consensus around norms
 is challenging. As a result, leaving the decision of which type of test to write
 to spur-of-the-moment judgment is likely to result in inconsistent test design.
 Instead, you might consider separating these two categories into separate test
-types or suites.
+types or suites, with simple heuristics to determine which types of code demand
+which type of test.
 
 For example, it would be completely reasonable to load this gem's test data for
 integration tests, but not for basic tests of models, like so:
@@ -1043,13 +1063,14 @@ suite—care should be taken to audit everything the suite does between tests in
 order to optimize its overall runtime.
 
 The first and most likely source of unnecessary slowness is redundant test
-cleanup. If every test calls `TestData.uses_test_data` or
-`TestData.uses_clean_slate` or `TestData.uses_rails_fixtures`, then you can rest
-assured that each will either create or rollback to a transaction savepoint
-that's free of interference from other tests. As a result, the presence of other
-tools like
-[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) could
-actually inadvertently increase each test's runtime.
+cleanup—the speed gained from sandwiching every expensive operation between
+transaction savepoints can be profound… but can also easily be erased by a
+single before-each hook calling
+[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
+commit a truncation of the database. As a result, it's worth taking a little
+time to take stock of everything that's called between tests during setup &
+teardown to ensure multiple tools aren't attempting to clean up the state of the
+database and potentially interfering with one another.
 
 A second opportunity for optimization is to group tests that use the same type
 of test data together, either into separate suites or by preventing them from
@@ -1064,7 +1085,7 @@ fixtures loaded and new savepoints created (which would then be undone again if
 the _next_ test happened to call `uses_test_data`).
 
 As a result of the above, the marginal runtime cost for each `TestData.uses_*`
-method depends on which kind of test precedes and follows it. That means your
+method depends on which kinds of test precedes and follows it. That means your
 tests will run faster overall if the tests that call `TestData.uses_test_data`
 are run as a group separately from your tests that rely on
 `TestData.uses_clean_slate` or `TestData.uses_rails_fixtures`. Separating your
