@@ -1,3 +1,10 @@
+# unreleased
+
+- Adds several lifecycle hooks:
+  - config.after_test_data_load
+  - config.after_test_data_truncate
+  - config.after_rails_fixture_load
+
 # 0.2.0
 
 - BREAKING CHANGES: Remove or rename a bunch of APIs that aren't quite necessary
