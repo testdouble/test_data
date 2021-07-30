@@ -381,11 +381,15 @@ If you're adding `test_data` to an existing application, it's likely that you
 won't be able to easily adopt a one-size-fits-all approach to test setup across
 your entire suite. Some points of reference, if that's the situation you're in:
 
-* If your test suite is already using fixtures or factories and the above hooks
-  just broke everything, check out our [interoperability
+* If your test suite is **already using fixtures or factories** and the above
+  hooks just broke everything, check out our [interoperability
   guide](#factory--fixture-interoperability-guide) for help.
-* If you don't want `test_data` managing transactions and cleanup for you and
-  just want to load the SQL dump, you can call
+* If you need to make any changes to the data after it's loaded, truncated, or
+  after Rails fixtures are loaded, you can configure [lifecycle
+  hooks](#lifecycle-hooks) that will help you achieve a **very fast test suite**
+  by including those changes inside the transaction savepoints
+* If you **don't want `test_data` managing transactions** and cleanup for you
+  and just want to load the SQL dump, you can call
   [TestData.insert_test_data_dump](#testdatainsert_test_data_dump)
 * For more information on how all this works, see the [API
   reference](#api-reference).
@@ -1203,27 +1207,26 @@ run. That said—and especially if you're adding `test_data` to an existing test
 suite—care should be taken to audit everything the suite does between tests in
 order to optimize its overall runtime.
 
-The first and most likely source of unnecessary slowness is redundant test
-cleanup—the speed gained from sandwiching every expensive operation between
-transaction savepoints can be profound… but can also easily be erased by a
-single before-each hook calling
-[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
-commit a truncation of the database. As a result, it's worth taking a little
-time to take stock of everything that's called between tests during setup &
-teardown to ensure multiple tools aren't attempting to clean up the state of the
-database and potentially interfering with one another.
+#### Randomized test order leading to data churn
 
-A second opportunity for optimization is to group tests that use the same type
-of test data together, either into separate suites or by preventing them from
-being run in random order across said types. For example, suppose you have 10
-tests that call `TestData.uses_test_data` and 10 that call
-`TestData.uses_rails_fixtures`. If a test that calls `TestData.uses_test_data`
-is followed by another that calls `uses_test_data`, the only operation needed by
-the second call will be a rollback to the savepoint taken after the test data
-was loaded. If, however, a `uses_test_data` test is followed by a
-`uses_rails_fixtures` test, then the test data will be truncated and the
-fixtures loaded and new savepoints created (which would then be undone again if
-the _next_ test happened to call `uses_test_data`).
+Generally speaking, randomizing the order in which tests run is an unmitigated
+win: randomizing helps you catch any unintended dependency between two tests
+early, when it's still cheap & easy to fix. However, if your tests use different
+sources of test data (e.g. some call `TestData.uses_test_data` and some call
+`TestData.uses_clean_slate`), it's very likely that randomizing your tests will
+result in a significantly slower overall test suite. Instead, if you group tests
+that use the same type of test data together (e.g. by separating them into
+separate suites), you might find profound speed gains.
+
+To illustrate why, suppose you have 10 tests that call
+`TestData.uses_test_data` and 10 that call `TestData.uses_rails_fixtures`. If a
+test that calls `TestData.uses_test_data` is followed by another that calls
+`uses_test_data`, the only operation needed by the second call will be a
+rollback to the savepoint taken after the test data was loaded. If, however, a
+`uses_test_data` test is followed by a `uses_rails_fixtures` test, then the test
+data will be truncated and the fixtures loaded and new savepoints created (which
+would then be undone again if the _next_ test happened to call
+`uses_test_data`).
 
 As a result of the above, the marginal runtime cost for each `TestData.uses_*`
 method depends on which kinds of test precedes and follows it. That means your
@@ -1238,6 +1241,31 @@ multiple commands to execute them (e.g. `bin/rails test test/test_data_tests`
 and `bin/rails test/factory_tests`). Every CI configuration is different,
 however, and you may find yourself needing to get creative in configuring things
 to achieve the fastest build time.
+
+#### Expensive data manipulation
+
+If you're doing anything repeatedly that's data-intensive in your test setup
+after calling one of the `TestData.uses_*` methods, that operation is being
+repeated once per test, which could be very slow. Instead, you might consider
+moving that behavior into a [lifecycle hook](#lifecycle-hooks).
+
+Any code passed to a lifecycle hook will only be executed when data is
+_actually_ loaded or truncated and its effect will be included in the
+transaction savepoint that the `test_data` gem rolls back between tests.
+Seriously, appropriately moving data adjustments into these hooks can cut your
+test suite's runtime by an order of magnitude.
+
+#### Redundant test setup tasks
+
+One of the most likely sources of unnecessary slowness is redundant test
+cleanup. The speed gained from sandwiching every expensive operation between
+transaction savepoints can be profound… but can also easily be erased by a
+single before-each hook calling
+[database_cleaner](https://github.com/DatabaseCleaner/database_cleaner) to
+commit a truncation of the database. As a result, it's worth taking a little
+time to take stock of everything that's called between tests during setup &
+teardown to ensure multiple tools aren't attempting to clean up the state of the
+database and potentially interfering with one another.
 
 ## Code of Conduct
 
