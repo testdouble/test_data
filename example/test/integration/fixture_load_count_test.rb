@@ -11,8 +11,11 @@ class HookCounter
   end
 end
 at_exit do
-  if HookCounter.count > 2 # could be 1 if :all runs first, 2 if :boops only does
-    raise "Rails Fixture load was called #{HookCounter.count} times, shouldn't be more than 2!"
+  if TestData.statistics.load_rails_fixtures_count > 2 # could be 1 if :all runs first, 2 if :boops only does
+    raise "Rails fixture load was called #{TestData.statistics.load_rails_fixtures_count} times, shouldn't be more than 2!"
+  end
+  if HookCounter.count > 2
+    raise "Rails fixture load hook was called #{HookCounter.count} times, shouldn't be more than 2!"
   end
 end
 
