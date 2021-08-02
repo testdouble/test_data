@@ -36,7 +36,7 @@ module TestData
         test_instance.pre_loaded_fixtures = false
         test_instance.use_transactional_tests = false
         test_instance.__test_data_gem_setup_fixtures
-        @already_loaded_rails_fixtures.merge!(test_instance.instance_variable_get(:@loaded_fixtures))
+        @already_loaded_rails_fixtures = test_instance.instance_variable_get(:@loaded_fixtures)
         @statistics.count_load_rails_fixtures!
         @config.after_rails_fixture_load_hook.call
       end
