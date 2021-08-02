@@ -1227,15 +1227,20 @@ result in a significantly slower overall test suite. Instead, if you group tests
 that use the same type of test data together (e.g. by separating them into
 separate suites), you might find profound speed gains.
 
-To illustrate why, suppose you have 10 tests that call
-`TestData.uses_test_data` and 10 that call `TestData.uses_rails_fixtures`. If a
-test that calls `TestData.uses_test_data` is followed by another that calls
-`uses_test_data`, the only operation needed by the second call will be a
-rollback to the savepoint taken after the test data was loaded. If, however, a
-`uses_test_data` test is followed by a `uses_rails_fixtures` test, then the test
-data will be truncated and the fixtures loaded and new savepoints created (which
-would then be undone again if the _next_ test happened to call
-`uses_test_data`).
+To illustrate why, suppose you have 10 tests that call `TestData.uses_test_data`
+and 10 that call `TestData.uses_rails_fixtures`. If a test that calls
+`TestData.uses_test_data` is followed by another that calls `uses_test_data`,
+the only operation needed by the second call will be a rollback to the savepoint
+taken after the test data was loaded. If, however, a `uses_test_data` test is
+followed by a `uses_rails_fixtures` test, then a lot more work is required:
+first a rollback, then the truncation of the test data, then a load of the
+fixtures followed by creation of a new savepoint (which would then be undone
+again if the _next_ test happened to call `uses_test_data`).
+
+So if all of these tests ran in random order, you might see:
+
+```
+```
 
 As a result of the above, the marginal runtime cost for each `TestData.uses_*`
 method depends on which kinds of test precedes and follows it. That means your
