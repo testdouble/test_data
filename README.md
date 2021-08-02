@@ -375,6 +375,15 @@ RSpec.describe "Kitchen sink", type: :request do
 end
 ```
 
+But wait, there's more! If your test suite switches between multiple modes from
+test-to-test, it's important to be aware of the marginal cost _between_ each of
+those tests. For example, two tests in a row that call `TestData.uses_test_data`
+only need a simple rollback as test setup, but a `TestData.uses_test_data`
+followed by a `TestData.uses_clean_slate` requires a rollback, a truncation, and
+another savepoint. These small costs add up, so consider [speeding up your
+build](#im-worried-my-tests-arent-as-fast-as-they-should-be) by grouping your
+tests into sub-suites based on their source of test data.
+
 #### If your situation is more complicated
 
 If you're adding `test_data` to an existing application, it's likely that you
@@ -493,15 +502,15 @@ suite after following the initial setup guide and see if the suite just passes.
 
 If you find that your test suite is failing after adding
 `TestData.uses_test_data` to your setup, don't panic! Test failures are most
-likely caused by the combination of your `test_data` database with the data
-persisted by your factories.
+likely caused by the combination of your `test_data` SQL dump with the records
+inserted by your factories.
 
 One approach would be to attempt to resolve each such failure one-by-one—usually
 by updating the offending factories or editing your `test_data` database to
 ensure they steer clear of one another. Care should be taken to preserve the
-conceptual encapsulation of each test, however, as naively squashing errors can
-introduce inadvertent coupling between your factories and your `test_data`
-database such that neither can be used independently of the other.
+conceptual encapsulation of each test, however, as naively squashing errors
+risks introducing inadvertent coupling between your factories and your
+`test_data` data such that neither can be used independently of the other.
 
 Another approach that the `test_data` gem provides is an additional mode with
 `TestData.uses_clean_slate`, which—when called at the top of a factory-dependent
