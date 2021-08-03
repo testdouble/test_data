@@ -1,4 +1,9 @@
-# unreleased
+# 0.2.2
+
+- Improve performance of Rails fixtures being repeatedly loaded by changing the
+caching strategy
+
+# 0.2.1
 
 - Adds several lifecycle hooks:
   - config.after_test_data_load
