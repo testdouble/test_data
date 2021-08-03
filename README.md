@@ -1227,20 +1227,9 @@ result in a significantly slower overall test suite. Instead, if you group tests
 that use the same type of test data together (e.g. by separating them into
 separate suites), you might find profound speed gains.
 
-To illustrate why, suppose you have 5 tests that call `TestData.uses_test_data`
-and 5 that call `TestData.uses_rails_fixtures`. If a test that calls
-`TestData.uses_test_data` is followed by another that calls `uses_test_data`,
-the only operation needed by the second call will be a rollback to the savepoint
-taken after the test data was loaded. If, however, a `uses_test_data` test is
-followed by a `uses_rails_fixtures` test, then a lot more work is required:
-first a rollback, then the truncation of the test data, then a load of the
-fixtures followed by creation of a new savepoint—which would in tunr be undone
-again if the _next_ test happened to call `uses_test_data`. Switching between
-tests that use different sources of test data can cause significant unnecessary
-thrashing.
-
-To illustrate the above, if all of these tests ran in random order (the
-default), you might see:
+To illustrate this, suppose you had 5 tests that relied on your `test_data` data
+and 5 that relied on Rails fixtures. If all of these tests ran in random order
+(the default), you might see the following behavior at run-time:
 
 ```
 $ bin/rails test test/example_test.rb
