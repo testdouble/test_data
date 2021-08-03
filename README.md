@@ -1227,34 +1227,84 @@ result in a significantly slower overall test suite. Instead, if you group tests
 that use the same type of test data together (e.g. by separating them into
 separate suites), you might find profound speed gains.
 
-To illustrate why, suppose you have 10 tests that call `TestData.uses_test_data`
-and 10 that call `TestData.uses_rails_fixtures`. If a test that calls
+To illustrate why, suppose you have 5 tests that call `TestData.uses_test_data`
+and 5 that call `TestData.uses_rails_fixtures`. If a test that calls
 `TestData.uses_test_data` is followed by another that calls `uses_test_data`,
 the only operation needed by the second call will be a rollback to the savepoint
 taken after the test data was loaded. If, however, a `uses_test_data` test is
 followed by a `uses_rails_fixtures` test, then a lot more work is required:
 first a rollback, then the truncation of the test data, then a load of the
-fixtures followed by creation of a new savepoint (which would then be undone
-again if the _next_ test happened to call `uses_test_data`).
+fixtures followed by creation of a new savepoint—which would in tunr be undone
+again if the _next_ test happened to call `uses_test_data`. Switching between
+tests that use different sources of test data can cause significant unnecessary
+thrashing.
 
-So if all of these tests ran in random order, you might see:
+To illustrate the above, if all of these tests ran in random order (the
+default), you might see:
 
 ```
+$ bin/rails test test/example_test.rb
+Run options: --seed 63999
+
+# Running:
+
+   test_data -- loading test_data SQL dump
+.  fixtures  -- truncating tables, loading Rails fixtures
+.  fixtures  -- rolling back to Rails fixtures
+.  test_data -- rolling back to clean test_data
+.  fixtures  -- truncating tables, loading Rails fixtures
+.  test_data -- rolling back to clean test_data
+.  fixtures  -- truncating tables, loading Rails fixtures
+.  test_data -- rolling back to clean test_data
+.  fixtures  -- truncating tables, loading Rails fixtures
+.  test_data -- rolling back to clean test_data
+.
+
+Finished in 2.449957s, 4.0817 runs/s, 4.0817 assertions/s.
+10 runs, 10 assertions, 0 failures, 0 errors, 0 skips
 ```
 
-As a result of the above, the marginal runtime cost for each `TestData.uses_*`
-method depends on which kinds of test precedes and follows it. That means your
-tests will run faster overall if the tests that call `TestData.uses_test_data`
-are run as a group separately from your tests that rely on
-`TestData.uses_clean_slate` or `TestData.uses_rails_fixtures`. Separating your
-tests into logical groups pretty trivial if you're using RSpec, as the
-[tag](https://relishapp.com/rspec/rspec-core/v/3-10/docs/command-line/tag-option)
-feature was built with this sort of need in mind. If you're using Minitest, you
-might consider organizing the tests in different directories and running
-multiple commands to execute them (e.g. `bin/rails test test/test_data_tests`
-and `bin/rails test/factory_tests`). Every CI configuration is different,
-however, and you may find yourself needing to get creative in configuring things
-to achieve the fastest build time.
+So, what can you do to speed this up? The most effective strategy to avoiding
+this churn is to group the execution of each tests that use each source of test
+data into sub-suites that are run serially, on e after the other.
+
+* If you're using Rails' defualt Minitest, we wrote a gem called
+  [minitest-suite](https://github.com/testdouble/minitest-suite) to accomplish
+  exactly this. Just declare something like `suite :test_data` or `suite
+  :fixtures` at the top of each test class
+* If you're using RSpec, the
+  [tag](https://relishapp.com/rspec/rspec-core/v/3-10/docs/command-line/tag-option)
+  feature can help you organize your tests by type, but you'll likely have to
+  run a separate CLI invocation for each to avoid the tests from being
+  interleaved
+
+Here's what the same example would do at run-time after adding
+[minitest-suite](https://github.com/testdouble/minitest-suite):
+
+```
+$ bin/rails test test/example_test.rb
+Run options: --seed 50105
+
+# Running:
+
+   test_data -- loading test_data SQL dump
+.  test_data -- rolling back to clean test_data
+.  test_data -- rolling back to clean test_data
+.  test_data -- rolling back to clean test_data
+.  test_data -- rolling back to clean test_data
+.  fixtures -- truncating tables, loading Rails fixtures
+.  fixtures -- rolling back to clean fixtures
+.  fixtures -- rolling back to clean fixtures
+.  fixtures -- rolling back to clean fixtures
+.  fixtures -- rolling back to clean fixtures
+.
+
+Finished in 2.377050s, 4.2069 runs/s, 4.2069 assertions/s.
+10 runs, 10 assertions, 0 failures, 0 errors, 0 skips
+```
+
+By grouping the execution in this way, the most expensive operations will
+usually only be run once: at the beginning of the first test in each suite.
 
 #### Expensive data manipulation
 
