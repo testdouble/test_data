@@ -37,25 +37,30 @@ module TestData
   def self.uninitialize
     @manager ||= Manager.new
     @manager.rollback_to_before_data_load
+    nil
   end
 
   def self.uses_test_data
     @manager ||= Manager.new
     @manager.load
+    nil
   end
 
   def self.uses_clean_slate
     @manager ||= Manager.new
     @manager.truncate
+    nil
   end
 
   def self.uses_rails_fixtures(test_instance)
     @rails_fixtures_loader ||= CustomLoaders::RailsFixtures.new
     @manager ||= Manager.new
     @manager.load_custom_data(@rails_fixtures_loader, test_instance: test_instance)
+    nil
   end
 
   def self.insert_test_data_dump
     InsertsTestData.new.call
+    nil
   end
 end
