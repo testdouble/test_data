@@ -1261,9 +1261,11 @@ data into sub-suites that are run serially, on e after the other.
   [minitest-suite](https://github.com/testdouble/minitest-suite) to accomplish
   exactly this. Just declare something like `suite :test_data` or `suite
   :fixtures` at the top of each test class
-* If you're using RSpec, the
-  [tag](https://relishapp.com/rspec/rspec-core/v/3-10/docs/command-line/tag-option)
-  feature can help you organize your tests by type, but you'll likely have to
+* If you're using RSpec, the [suite option combined with a custom
+  ordering](https://gist.github.com/myronmarston/8fea012b9eb21b637335bb29069bce6b)
+  can accomplish this. You might also consider using
+  [tags](https://relishapp.com/rspec/rspec-core/v/3-10/docs/command-line/tag-option)
+  to organize your tests by type, but you'll likely have to
   run a separate CLI invocation for each to avoid the tests from being
   interleaved
 
