@@ -28,10 +28,30 @@ bin/rails test test/integration/better_mode_switching_demo_test.rb
 bin/rails test test/integration/parallel_boops_with_fixtures_test.rb
 bin/rails test test/integration/parallel_boops_without_fixtures_test.rb
 
+# Verify the out-of-date database warning system works (step 1)
+mkdir -p tmp/dump-backup-1
+cp test/support/test_data/* tmp/dump-backup-1
+
 # Test using the test_data env to interactively create test data
 RAILS_ENV=test_data rails runner "5.times { Boop.create! }"
 bin/rake test_data:dump
 bin/rails test test/integration/updated_boops_test.rb
+
+# Verify the out-of-date database warning system works (step 2)
+mkdir -p tmp/dump-backup-2
+cp test/support/test_data/* tmp/dump-backup-2
+cp tmp/dump-backup-1/* test/support/test_data
+bin/rake test_data:drop_database test_data:load
+cp tmp/dump-backup-2/* test/support/test_data
+if ! bin/rails runner "" 2>&1 | grep -q "[test_data:warn] SQL dump is newer than your local test_data database"; then
+  echo "Expected to be warned that the SQL dump was out-of-date, but there was no warning."
+  exit 1
+fi
+bin/rake test_data:drop_database test_data:load
+if bin/rails runner "" 2>&1 | grep -q "[test_data:warn]"; then
+  echo "Expected NOT to be warned about an out-of-date SQL dump, but a warning was printed."
+  exit 1
+fi
 
 # Test a migration being added and run and an out-of-date dump being loaded
 cp ../test/fixtures/20210418220133_add_beep_to_boops.rb db/migrate
