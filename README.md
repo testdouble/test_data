@@ -775,8 +775,8 @@ There are two additional things to keep in mind if using this method:
 
 1. Using this feature requires that you've first invoked
    [TestData.prevent_rails_fixtures_from_loading_automatically!](#testdataprevent_rails_fixtures_from_loading_automatically)
-   to override Rails' default behavior before any of your tests have loaded or
-   started running
+   before your tests have started running to override Rails' default behavior
+   before any of your tests have loaded or started running
 
 2. Because the method depends on Rails' fixture caching mechanism, it must be
    passed an instance of the running test class (e.g.
