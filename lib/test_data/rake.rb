@@ -10,17 +10,18 @@ def run_in_test_data_env(task_name)
 end
 
 def create_database_or_else_blow_up_if_its_not_empty!
+  raise unless Rails.env.test_data?
+
+  unless TestData::DetectsDatabaseExistence.new.call
+    Rake::Task["test_data:create_database"].invoke
+  end
+
   unless TestData::DetectsDatabaseEmptiness.new.empty?
     raise TestData::Error.new("Database '#{TestData.config.database_name}' already exists and is not empty. To re-initialize it, drop it first (e.g. `rake test_data:drop_database`)")
   end
-rescue TestData::Error => e
-  raise e
-rescue
-  # Only (anticipated) cause for raise here is DB did not exist
-  Rake::Task["test_data:create_database"].invoke
 end
 
-desc "Verifies test_data environment looks good"
+desc "Verifies that the test_data environment looks good"
 task "test_data:verify_config" do
   TestData.log.with_plain_writer do
     config = TestData::VerifiesConfiguration.new.call
@@ -34,12 +35,12 @@ task "test_data:verify_config" do
   end
 end
 
-desc "Install default configuration files and snippets"
+desc "Installs default configuration files and snippets"
 task "test_data:configure" do
   TestData::InstallsConfiguration.new.call
 end
 
-desc "Initialize test_data's interactive database"
+desc "Initializes test_data's interactive database"
 task "test_data:initialize" => ["test_data:verify_config", :environment] do
   next run_in_test_data_env("test_data:initialize") if wrong_env?
 
@@ -59,7 +60,36 @@ task "test_data:initialize" => ["test_data:verify_config", :environment] do
   MSG
 end
 
-desc "Initialize test_data Rails environment & configure database"
+desc "Re-initializes test_data's interactive database (by dropping and reloading it)"
+task "test_data:reinitialize" => ["test_data:verify_config", :environment] do
+  next run_in_test_data_env("test_data:reinitialize") if wrong_env?
+
+  # Take caution only if the test_data database exists
+  if TestData::DetectsDatabaseExistence.new.call
+    TestData::WarnsIfDatabaseIsNewerThanDump.new.call
+
+    unless ENV["TEST_DATA_CONFIRM"].present?
+      confirmed = if $stdin.isatty
+        puts "This will DROP test_data database '#{TestData.config.database_name}'. Are you sure you want to re-initialize it? [yN]"
+        $stdin.gets.chomp.downcase.start_with?("y")
+      else
+        puts "'#{TestData.config.database_name}' exists. Set TEST_DATA_CONFIRM=true to drop the database and re-initialize it."
+        false
+      end
+
+      unless confirmed
+        puts "Exiting without making any changes"
+        exit 1
+      end
+    end
+
+    Rake::Task["test_data:drop_database"].invoke
+  end
+
+  Rake::Task["test_data:initialize"].invoke
+end
+
+desc "Initializes test_data Rails environment & configure database"
 task "test_data:install" => ["test_data:configure", "test_data:initialize"]
 
 desc "Dumps the interactive test_data database"

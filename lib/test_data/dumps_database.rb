@@ -6,9 +6,12 @@ module TestData
   class DumpsDatabase
     def initialize
       @config = TestData.config
+      @records_dump_metadata = RecordsDumpMetadata.new
     end
 
     def call
+      @records_dump_metadata.call
+
       dump(
         type: :schema,
         database_name: @config.database_name,
