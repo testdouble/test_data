@@ -61,6 +61,7 @@ we have reckoned with to this point.
     * [test_data:configure](#test_dataconfigure)
     * [test_data:verify_config](#test_dataverify_config)
     * [test_data:initialize](#test_datainitialize)
+    * [test_data:reinitialize](#test_datareinitialize)
     * [test_data:dump](#test_datadump)
     * [test_data:load](#test_dataload)
     * [test_data:create_database](#test_datacreate_database)
@@ -430,23 +431,21 @@ to update your test data. Here's how to do it:
     1. Be sure there's nothing in your local `test_data` database that you added
        intentionally and forgot to dump, because it's about to be erased
 
-    2. Run `rake test_data:drop_database`
+    2. Run `rake test_data:reinitialize` drop and recreate the `test_data`
+       database and load the latest SQL dumps into it
 
-    3. Run `rake test_data:load` to recreate the `test_data` database and load
-       the latest SQL dumps into it
+    3. Run any pending migrations with `RAILS_ENV=test_data bin/rake db:migrate`
 
-    4. Run any pending migrations with `RAILS_ENV=test_data bin/rake db:migrate`
-
-    5. If you need to create any additional data, start up the server
+    4. If you need to create any additional data, start up the server
        (`RAILS_ENV=test_data bin/rails s`), just like in [Step
        2](#step-2-create-some-test-data)
 
-    6. Export your newly-updated `test_data` database with `rake test_data:dump`
+    5. Export your newly-updated `test_data` database with `rake test_data:dump`
 
-    7. Ensure your tests are passing and then commit the resulting SQL files
+    6. Ensure your tests are passing and then commit the resulting SQL files
 
 * If the local `test_data` database is already up-to-date with the current SQL
-  dumps, follow steps **4 through 7** above
+  dumps, follow steps **3 through 6** above
 
 It's important to keep in mind that your test data SQL dumps are a shared,
 generated resource among your team (just like a `structure.sql` or `schema.rb`
@@ -663,6 +662,18 @@ your seed file. Specifically:
 
     * Otherwise, it invokes the task `db:schema:load` and `db:seed` (similar to
       Rails' built-in `db:setup` task)
+
+### test_data:reinitialize
+
+This task is designed for the situation where you may already have a `test_data`
+database created and simply want to drop it and replace it with whatever dumps
+are in the `test/support/test_data` directory.
+
+Dropping the database requires confirmation, either interactively or by setting
+the environment variable `TEST_DATA_CONFIRM`. It will additionally warn you in
+the event that the local database appears to be newer than the dumps on disk
+that would replace it. From there, this task behaves the same way as `rake
+test_data:initialize`.
 
 ### test_data:dump
 

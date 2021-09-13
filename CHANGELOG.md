@@ -1,3 +1,12 @@
+# unreleased
+
+- Add a `test_data:reinitialize` task that will delete the `test_data` database
+  if necessary before invoking `test_data:initialize`
+  - Warn if re-initializing and the local database appears to have been dumped
+    or loaded from a dump that is newer than the dumps on disk
+- Add a warning on app load if the dumps on disk appear
+  newer than the local `test_data` database
+
 # 0.2.2
 
 - Improve performance of Rails fixtures being repeatedly loaded by changing the
