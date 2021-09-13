@@ -41,7 +41,10 @@ bin/rails test test/integration/updated_boops_test.rb
 mkdir -p tmp/dump-backup-2
 cp test/support/test_data/* tmp/dump-backup-2
 cp tmp/dump-backup-1/* test/support/test_data
-if ! bin/rake test_data:reinitialize 2>&1 | grep -q "\[test_data:warn\] Your local test_data database 'example_test_data' is associated"; then
+set +e
+result=`yes "n" | bin/rake test_data:reinitialize 2>&1`
+set -e
+if ! echo "$result" | grep -q "\[test_data:warn\] Your local test_data database 'example_test_data' is associated"; then
   echo "Expected to be warned that the SQL dump was older than the database, but there was no warning."
   exit 1
 fi
@@ -51,7 +54,10 @@ if ! RAILS_ENV=test_data bin/rails runner "" 2>&1 | grep -q "\[test_data:warn\] 
   echo "Expected to be warned that the SQL dump was newer than the database, but there was no warning."
   exit 1
 fi
-if bin/rake test_data:reinitialize 2>&1 | grep -q "\[test_data:warn\]"; then
+set +e
+result=`yes "n" | bin/rake test_data:reinitialize 2>&1`
+set -e
+if echo "$result" | grep -q "\[test_data:warn\] Your local test_data database 'example_test_data' is associated"; then
   echo "Expected NOT to be warned that the SQL dump was older than the database, but a warning was printed."
   exit 1
 fi
