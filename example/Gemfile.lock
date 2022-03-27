@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    test_data (0.3.0)
+    test_data (0.3.1)
       railties (>= 6.0, < 8.0)
 
 GEM

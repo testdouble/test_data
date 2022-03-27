@@ -1,3 +1,7 @@
+# 0.3.1
+
+- Loosen railties dependencies after verifying basic Rails 7 support
+
 # 0.3.0
 
 - Add a `test_data:reinitialize` task that will delete the `test_data` database
