@@ -19,8 +19,8 @@ What it does:
   app**
 
 * Exposes a simple API for ensuring that your data will be pristine for each of
-  your tests, whether the test depends on test_data, an empty database, or Rails
-  fixtures
+  your tests, whether the test depends on test_data, factories, fixtures, or an
+  empty database
 
 * Safeguards your tests from flaky failures and supercharges your build by
   providing a sophisticated transaction manager that isolates each test while
@@ -41,11 +41,11 @@ are required**—so it may not work for every project just yet.]_
 
 This gem requires a lot of documentation—not because `test_data` does a lot of
 things, but because managing one's test data is an inherently complex task. If
-one reason Rails apps chronically suffer from slow tests is that other
-approaches oversimplify test data management, it stands to reason that any
-discomfort caused by `test_data`'s scope may not be _unnecessary complexity_ but
-instead be an indication of how little of the problem's _essential complexity_
-we have reckoned with to this point.
+there's one reason Rails apps often suffer from slow tests, it's that the most
+popular approaches to test data management oversimplify the problem—they might
+save time up front, but tend to cost you later. The `test_data` gem, meanwhile,
+is designed to tackle the problem head on: it takes longer to set up, but it'll
+scale along with your application for years to come.
 
 1. [Getting Started Guide](#getting-started-guide)
     1. [Install and initialize `test_data`](#step-1-install-and-initialize-test_data)
@@ -106,22 +106,42 @@ And if you get stuck or need help as you're getting started, please feel free to
 
 ### Step 1: Install and initialize `test_data`
 
-#### Adding the gem
+#### Adding a `:test_data` group to your Gemfile
 
-First, add `test_data` to your Gemfile. Either include it in all groups or add
-it to the `:development`, `:test`, and (the all new!) `:test_data` gem groups:
-
-```ruby
-group :development, :test, :test_data do
-  gem "test_data"
-  # … other gems available to development & test
-end
-```
+Before even installing anything, it's important to understand that because
+`test_data` defines a new Rails environment and because Rails expects
+a gem group (like `:development`, `:test`, and `:production`) for each
+environment, any gems we want to be available to the `test_data` gem need to be
+installed with a `:test_data` group.
 
 Since the `test_data` environment is designed to be used similarly to
 `development` (i.e. with a running server and interacting via a browser), any
 gems in your `:development` gem group should likely be included in a
 `:test_data` gem group as well.
+
+For example, this:
+
+```ruby
+group :development, :test do
+  gem "standard"
+  gem "cypress-rails"
+  gem "test_data"
+end
+```
+
+Should have its first line changed to:
+
+```ruby
+group :development, :test, :test_data do
+```
+
+#### Adding the gem
+
+Finally, add `test_data` to your Gemfile and `bundle install` it:
+
+```ruby
+gem "test_data"
+```
 
 #### Configuring the gem and initializing the database
 
