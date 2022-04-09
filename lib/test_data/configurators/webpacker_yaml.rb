@@ -3,21 +3,23 @@ module TestData
     class WebpackerYaml
       def initialize
         @generator = WebpackerYamlGenerator.new
-        @config = TestData.config
+        @webpacker_config = Wrap::WebpackerConfig.new
       end
 
       def verify
-        path = "config/webpacker.yml"
-        pathname = Pathname.new("#{@config.pwd}/#{path}")
-        return ConfigurationVerification.new(looks_good?: true) unless pathname.readable?
-        yaml = load_yaml(pathname)
-        if yaml.nil?
+        if @webpacker_config.no_user_config_exists?
+          ConfigurationVerification.new(looks_good?: true)
+        elsif (user_config = @webpacker_config.user_config).nil?
           ConfigurationVerification.new(problems: [
-            "'#{path}' is not valid YAML"
+            "`#{@webpacker_config.relative_user_config_path}' is not valid YAML"
           ])
-        elsif !yaml.key?("test_data")
+        elsif !user_config.key?("test_data")
           ConfigurationVerification.new(problems: [
-            "'#{path}' does not contain a 'test_data' section"
+            "`#{@webpacker_config.relative_user_config_path}' does not contain a `test_data' section"
+          ])
+        elsif (entries = @webpacker_config.required_entries_missing_from_test_data_config)
+          ConfigurationVerification.new(problems: [
+            "`#{@webpacker_config.relative_user_config_path}' is missing #{"entry".pluralize(entries.size)} #{entries.map { |(k, v)| "`#{k}' (default: #{v.inspect})" }.join(", ")} in its `test_data' section"
           ])
         else
           ConfigurationVerification.new(looks_good?: true)
@@ -26,13 +28,6 @@ module TestData
 
       def configure
         @generator.call
-      end
-
-      private
-
-      def load_yaml(pathname)
-        YAML.load_file(pathname)
-      rescue
       end
     end
   end

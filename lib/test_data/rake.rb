@@ -3,7 +3,7 @@ def wrong_env?
 end
 
 def run_in_test_data_env(task_name)
-  command = "RAILS_ENV=test_data #{Rails.root}/bin/rake #{task_name}"
+  command = "RAILS_ENV=test_data #{Rails.root}/bin/rake #{task_name} --trace"
   unless system(command)
     fail "An error ocurred when running: #{command}"
   end
