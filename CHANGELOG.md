@@ -1,3 +1,9 @@
+# 0.3.2
+
+- Improve the flexibility of the webpacker config generator
+- Improve failure output when an error is raised during rake tests that fork
+  into a `test_data` env
+
 # 0.3.1
 
 - Loosen railties dependencies after verifying basic Rails 7 support
