@@ -1,3 +1,5 @@
+require_relative "../yaml_loader"
+
 module TestData
   module Configurators
     class SecretsYaml
@@ -8,7 +10,7 @@ module TestData
 
       def verify
         if !File.exist?(@config.secrets_yaml_full_path) ||
-            YAML.load_file(@config.secrets_yaml_full_path).key?("test_data")
+            YAMLLoader.load_file(@config.secrets_yaml_full_path).key?("test_data")
           ConfigurationVerification.new(looks_good?: true)
         else
           ConfigurationVerification.new(problems: [

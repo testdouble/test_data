@@ -1,3 +1,5 @@
+require_relative "./yaml_loader"
+
 module TestData
   def self.config(pwd: Rails.root, &blk)
     @configuration ||= Configuration.new(pwd: pwd)
@@ -95,7 +97,7 @@ module TestData
     end
 
     def database_yaml
-      YAML.load_file(database_yaml_full_path)
+      YAMLLoader.load_file(database_yaml_full_path)
     end
 
     def database_name
