@@ -80,7 +80,7 @@ module TestData
 
     def log_size_info_and_warnings(before_size:, after_size:)
       percent_change = percent_change(before_size, after_size)
-      TestData.log.info "  Size: #{to_size(after_size)}#{" (#{percent_change}% #{before_size > after_size ? "decrease" : "increase"})" if percent_change}"
+      TestData.log.info "  Size: #{to_size(after_size)}#{" (#{percent_change}% #{(before_size > after_size) ? "decrease" : "increase"})" if percent_change}"
       if after_size > 5242880
         TestData.log.warn "  WARNING: file size exceeds 5MB. Be sure to only persist what data you need to sufficiently test your application"
       end
