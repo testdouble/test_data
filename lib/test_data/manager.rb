@@ -117,12 +117,12 @@ module TestData
       if ar_internal_metadata_shows_test_data_is_loaded?
         TestData.log.warn "Attempted to record that test data is loaded in ar_internal_metadata, but record already existed. Perhaps a previous test run committed your test data?"
       else
-        ActiveRecord::InternalMetadata.create!(key: "test_data:loaded", value: "true")
+        TestData.create_metadata!(key: "test_data:loaded", value: "true")
       end
     end
 
     def ar_internal_metadata_shows_test_data_is_loaded?
-      ActiveRecord::InternalMetadata.find_by(key: "test_data:loaded")&.value == "true"
+      TestData.find_metadata(key: "test_data:loaded") == "true"
     end
 
     def ensure_after_truncate_save_point_is_active_if_data_is_truncated!
@@ -136,12 +136,12 @@ module TestData
       if ar_internal_metadata_shows_test_data_is_truncated?
         TestData.log.warn "Attempted to record that test data is truncated in ar_internal_metadata, but record already existed. Perhaps a previous test run committed the truncation of your test data?"
       else
-        ActiveRecord::InternalMetadata.create!(key: "test_data:truncated", value: "true")
+        TestData.create_metadata!(key: "test_data:truncated", value: "true")
       end
     end
 
     def ar_internal_metadata_shows_test_data_is_truncated?
-      ActiveRecord::InternalMetadata.find_by(key: "test_data:truncated")&.value == "true"
+      TestData.find_metadata(key: "test_data:truncated") == "true"
     end
 
     def ensure_custom_save_point_is_active_if_memo_exists!(name)
@@ -152,14 +152,14 @@ module TestData
     end
 
     def ar_internal_metadata_shows_custom_operation_was_persisted?(name)
-      ActiveRecord::InternalMetadata.find_by(key: "test_data:#{name}")&.value == "true"
+      TestData.find_metadata(key: "test_data:#{name}") == "true"
     end
 
     def record_ar_internal_metadata_of_custom_save_point(name)
       if ar_internal_metadata_shows_custom_operation_was_persisted?(name)
         TestData.log.warn "Attempted to record that test_data had loaded #{name} in ar_internal_metadata, but record already existed. Perhaps a previous test run committed it?"
       else
-        ActiveRecord::InternalMetadata.create!(key: "test_data:#{name}", value: "true")
+        TestData.create_metadata!(key: "test_data:#{name}", value: "true")
       end
     end
 

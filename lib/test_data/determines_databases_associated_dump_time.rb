@@ -1,7 +1,7 @@
 module TestData
   class DeterminesDatabasesAssociatedDumpTime
     def call
-      if (last_dumped_at = ActiveRecord::InternalMetadata.find_by(key: "test_data:last_dumped_at")&.value)
+      if (last_dumped_at = TestData.find_metadata(key: "test_data:last_dumped_at").presence)
         Time.parse(last_dumped_at)
       end
     rescue ActiveRecord::StatementInvalid

@@ -70,4 +70,28 @@ module TestData
     InsertsTestData.new.call
     nil
   end
+
+  def self.metadata
+    @metadata ||= if ActiveRecord::InternalMetadata.respond_to?(:find_by)
+      ActiveRecord::InternalMetadata
+    else
+      ActiveRecord::InternalMetadata.new(ActiveRecord::Base.connection)
+    end
+  end
+
+  def self.find_metadata(key:)
+    if metadata.respond_to?(:find_by)
+      metadata.find_by(key: key)
+    else
+      metadata[key]
+    end
+  end
+
+  def self.create_metadata!(key:, value:)
+    if metadata.respond_to?(:create!)
+      metadata.create!(key: key, value: value)
+    else
+      metadata[key] = value
+    end
+  end
 end
