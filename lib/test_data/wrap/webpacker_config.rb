@@ -1,3 +1,5 @@
+require_relative "../yaml_loader"
+
 module TestData
   module Wrap
     class WebpackerConfig
@@ -34,7 +36,7 @@ module TestData
       private
 
       def load_yaml(path)
-        YAML.load_file(path)
+        YAMLLoader.load_file(path)
       rescue
       end
     end
