@@ -24,7 +24,7 @@ module TestData
     def non_test_data_tables
       (@non_test_data_tables + [
         ActiveRecord::Base.connection.schema_migration.table_name,
-        ActiveRecord::InternalMetadata.table_name
+        TestData.metadata.table_name
       ]).uniq
     end
 
