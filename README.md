@@ -1,3 +1,10 @@
+# ⛔ DEPRECATED ⛔
+
+test_data is deprecated and unmaintained.
+
+We have no plans to hand off the package or resurrect it, but you are of course
+welcome to fork it.
+
 # The `test_data` gem
 
 `test_data` does what it says on the tin: it provides a fast & reliable system
