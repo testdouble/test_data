@@ -7,6 +7,11 @@ Gem::Specification.new do |spec|
   spec.email = ["searls@gmail.com"]
 
   spec.summary = "Dumps and Loads data for your Rails app's tests"
+  spec.description = <<~DESCRIPTION
+    DEPRECATED: test_data is deprecated and unmaintained. We have no plans to hand off the package or resurrect it, but you are of course welcome to fork it.
+
+    Dumps and Loads data for your Rails app's tests
+  DESCRIPTION
   spec.homepage = "https://github.com/testdouble/test_data"
   spec.required_ruby_version = Gem::Requirement.new(">= 2.4.0")
 
